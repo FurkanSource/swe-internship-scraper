@@ -1,0 +1,10 @@
+[
+  {
+    "id": "lever-1001",
+    "text": "Backend Engineering Intern",
+    "applyUrl": "https://jobs.lever.co/example/lever-1001/apply",
+    "categories": {"allLocations": ["Remote - US"]},
+    "createdAt": 1788200000000,
+    "descriptionPlain": "Build reliable services."
+  }
+]

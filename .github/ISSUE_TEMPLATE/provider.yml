@@ -1,0 +1,31 @@
+name: Provider request
+description: Propose support for another official ATS
+title: "[Provider]: "
+labels: [provider]
+body:
+  - type: input
+    id: provider
+    attributes:
+      label: ATS or provider name
+    validations:
+      required: true
+  - type: input
+    id: docs
+    attributes:
+      label: Official API or endpoint documentation
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Public example boards
+      description: Provide employer board URLs without account credentials.
+    validations:
+      required: true
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Endpoint checks
+      options:
+        - label: The endpoint is public and does not require bypassing authentication or anti-bot controls.
+          required: true

@@ -1,0 +1,12 @@
+{
+  "jobs": [
+    {
+      "id": 1001,
+      "title": "Software Engineering Intern",
+      "absolute_url": "https://job-boards.greenhouse.io/example/jobs/1001",
+      "location": {"name": "New York, NY"},
+      "updated_at": "2026-09-01T12:00:00Z",
+      "content": "<p>Build reliable software.</p>"
+    }
+  ]
+}

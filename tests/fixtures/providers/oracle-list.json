@@ -1,0 +1,24 @@
+{
+  "count": 1,
+  "hasMore": false,
+  "offset": 0,
+  "limit": 25,
+  "items": [
+    {
+      "requisitionList": {
+        "items": [
+          {
+            "Id": "1001",
+            "Title": "Software Engineering Intern",
+            "PrimaryLocation": "New York, NY",
+            "PostedDate": "2026-09-01"
+          }
+        ],
+        "count": 1,
+        "hasMore": false,
+        "limit": 25,
+        "offset": 0
+      }
+    }
+  ]
+}

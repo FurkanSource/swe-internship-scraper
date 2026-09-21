@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=77", "wheel>=0.43"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "swe-scraper-icims"
+version = "0.1.0"
+description = "Experimental public iCIMS provider for swe-internship-scraper."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{name = "Furkan Candar"}]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+]
+dependencies = [
+  "swe-internship-scraper>=1.0.0rc1,<2",
+]
+
+[project.entry-points."swe_scraper.providers"]
+icims = "swe_scraper_icims:IcimsProvider"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,13 @@
+{
+  "jobs": [
+    {
+      "id": "ashby-1001",
+      "title": "Machine Learning Intern",
+      "jobUrl": "https://jobs.ashbyhq.com/example/ashby-1001",
+      "location": "New York, NY",
+      "isRemote": false,
+      "publishedAt": "2026-09-01T12:00:00Z",
+      "descriptionPlain": "Build reliable models."
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "offset": 0,
+  "limit": 100,
+  "totalFound": 1,
+  "content": [
+    {"id": "sr-1001", "name": "Software Engineering Intern"}
+  ]
+}

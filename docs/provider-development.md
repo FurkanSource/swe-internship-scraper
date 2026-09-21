@@ -1,0 +1,37 @@
+# Provider development guide
+
+## Contract
+
+```python
+class Provider:
+    name = "provider-name"
+    required_options = ("origin",)
+
+    def validate_target(self, target: Target) -> None:
+        ...
+
+    def fetch(self, target: Target, client: HttpClient) -> list[Job]:
+        ...
+```
+
+Validation must reject missing, unsafe, or unbounded options before network access. `HttpClient` supports bounded `get_json`, `post_json`, and `get_text`. `JsonClient` is a deprecated compatibility alias through 1.x.
+
+Third-party packages register a provider class or instance:
+
+```toml
+[project.entry-points."swe_scraper.providers"]
+example = "example_provider:ExampleProvider"
+```
+
+## Support requirements
+
+1. Use an official public employer or ATS endpoint.
+2. Preserve provider identity and a direct application URL.
+3. Return all valid postings; shared SWE filtering runs later.
+4. Keep unknown dates empty.
+5. Bound response size, retries, pages, and repeated-page detection.
+6. Raise on malformed or known-incomplete responses.
+7. Use sanitized offline fixtures for request, parse, and pagination contracts.
+8. Add three live canaries before declaring a provider supported.
+
+HTML providers remain experimental plugins. They must stay on the configured origin and must not bypass authentication, CAPTCHA, or access controls. See the [iCIMS plugin tutorial](icims-plugin.md).

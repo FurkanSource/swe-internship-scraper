@@ -1,0 +1,10 @@
+{
+  "id": "sr-1001",
+  "name": "Software Engineering Intern",
+  "refNumber": "ENG-1001",
+  "releasedDate": "2026-09-01T12:00:00Z",
+  "location": {"city": "New York", "region": "NY", "country": "US"},
+  "jobAd": {"sections": {"jobDescription": {"text": "<p>Build software.</p>"}}},
+  "applyUrl": "https://jobs.smartrecruiters.com/Example/sr-1001",
+  "compensation": {"min": 30, "max": 40, "currency": "USD"}
+}

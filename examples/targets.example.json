@@ -1,0 +1,21 @@
+{
+  "greenhouse": [
+    {"name": "Example Greenhouse Company", "slug": "example"}
+  ],
+  "lever": [
+    {"name": "Example Lever Company", "slug": "example"}
+  ],
+  "ashby": [
+    {"name": "Example Ashby Company", "slug": "example"}
+  ],
+  "workday": [
+    {
+      "name": "Example Workday Company",
+      "slug": "careers",
+      "origin": "https://example.wd1.myworkdayjobs.com",
+      "tenant": "example",
+      "site": "careers",
+      "max_pages": 5
+    }
+  ]
+}

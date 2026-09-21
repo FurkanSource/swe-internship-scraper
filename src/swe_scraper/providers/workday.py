@@ -26,7 +26,7 @@ class WorkdayProvider:
         tenant = str(target.options.get("tenant") or "").strip()
         site = str(target.options.get("site") or target.slug).strip()
         endpoint = f"{origin}/wday/cxs/{tenant}/{site}/jobs"
-        limit = min(max(int(target.options.get("page_size", 20)), 1), 100)
+        limit = min(max(int(target.options.get("page_size", 20)), 1), 20)
         max_pages = min(max(int(target.options.get("max_pages", 5)), 1), 20)
         jobs: list[Job] = []
         last_total: int | None = None

@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from collections import Counter
 from pathlib import Path
 
 from _bootstrap import ROOT
@@ -49,6 +50,9 @@ class HardeningTests(unittest.TestCase):
             },
         )
         self.assertEqual(len(canaries), 18)
+        provider_counts = Counter(target.provider for target in all_targets)
+        for provider in {target.provider for target in canaries}:
+            self.assertGreaterEqual(provider_counts[provider], 10)
         self.assertFalse((ROOT / "tools" / "targets.json").exists())
         self.assertFalse((ROOT / "tools" / "all_targets.json").exists())
 

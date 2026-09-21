@@ -163,6 +163,24 @@ class ProviderTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "pagination limit"):
             WorkdayProvider().fetch(target, client)
 
+    def test_workday_caps_page_size_at_public_api_limit(self):
+        target = Target(
+            "workday",
+            "Acme",
+            "careers",
+            {
+                "origin": "https://acme.wd1.myworkdayjobs.com",
+                "tenant": "acme",
+                "site": "careers",
+                "page_size": 100,
+            },
+        )
+        client = FakeClient(post_data={"total": 0, "jobPostings": []})
+
+        WorkdayProvider().fetch(target, client)
+
+        self.assertEqual(client.calls[0][2]["limit"], 20)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

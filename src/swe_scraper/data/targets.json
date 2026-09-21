@@ -7371,6 +7371,28 @@
   ],
   "workday": [
     {
+      "name": "Adobe",
+      "slug": "external_experienced",
+      "origin": "https://adobe.wd5.myworkdayjobs.com",
+      "tenant": "adobe",
+      "site": "external_experienced",
+      "profiles": [
+        "all",
+        "priority"
+      ]
+    },
+    {
+      "name": "Cadence",
+      "slug": "external_careers",
+      "origin": "https://cadence.wd1.myworkdayjobs.com",
+      "tenant": "cadence",
+      "site": "external_careers",
+      "profiles": [
+        "all",
+        "priority"
+      ]
+    },
+    {
       "name": "Federal Reserve System",
       "slug": "FRS",
       "origin": "https://rb.wd5.myworkdayjobs.com",
@@ -7380,6 +7402,72 @@
         "all",
         "priority",
         "canary"
+      ]
+    },
+    {
+      "name": "Intel",
+      "slug": "External",
+      "origin": "https://intel.wd1.myworkdayjobs.com",
+      "tenant": "intel",
+      "site": "External",
+      "profiles": [
+        "all",
+        "priority"
+      ]
+    },
+    {
+      "name": "Leidos",
+      "slug": "External",
+      "origin": "https://leidos.wd5.myworkdayjobs.com",
+      "tenant": "leidos",
+      "site": "External",
+      "profiles": [
+        "all",
+        "priority"
+      ]
+    },
+    {
+      "name": "Mastercard",
+      "slug": "Campus",
+      "origin": "https://mastercard.wd1.myworkdayjobs.com",
+      "tenant": "mastercard",
+      "site": "Campus",
+      "profiles": [
+        "all",
+        "priority"
+      ]
+    },
+    {
+      "name": "Moog",
+      "slug": "MOOG_External_Career_Site",
+      "origin": "https://moog.wd5.myworkdayjobs.com",
+      "tenant": "moog",
+      "site": "MOOG_External_Career_Site",
+      "profiles": [
+        "all",
+        "priority"
+      ]
+    },
+    {
+      "name": "NVIDIA",
+      "slug": "NVIDIAExternalCareerSite",
+      "origin": "https://nvidia.wd5.myworkdayjobs.com",
+      "tenant": "nvidia",
+      "site": "NVIDIAExternalCareerSite",
+      "profiles": [
+        "all",
+        "priority"
+      ]
+    },
+    {
+      "name": "Revvity",
+      "slug": "External",
+      "origin": "https://revvity.wd103.myworkdayjobs.com",
+      "tenant": "revvity",
+      "site": "External",
+      "profiles": [
+        "all",
+        "priority"
       ]
     },
     {

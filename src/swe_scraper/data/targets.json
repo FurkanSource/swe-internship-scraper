@@ -247,13 +247,6 @@
       ]
     },
     {
-      "name": "Arcellx",
-      "slug": "arcellx",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Arcesium",
       "slug": "arcesium",
       "profiles": [
@@ -4734,13 +4727,6 @@
       ]
     },
     {
-      "name": "Thea Energy",
-      "slug": "thea",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Toyota Research Institute",
       "slug": "tri",
       "profiles": [
@@ -7443,6 +7429,7 @@
       "origin": "https://moog.wd5.myworkdayjobs.com",
       "tenant": "moog",
       "site": "MOOG_External_Career_Site",
+      "max_pages": 20,
       "profiles": [
         "all",
         "priority"
@@ -8906,14 +8893,6 @@
       "name": "HEXAWARE",
       "slug": "cx_1",
       "origin": "https://fa-etqo-saasfaprod1.fa.ocs.oraclecloud.com",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "Hilton Worldwide",
-      "slug": "cx_1009",
-      "origin": "https://efet.fa.us2.oraclecloud.com",
       "profiles": [
         "all"
       ]

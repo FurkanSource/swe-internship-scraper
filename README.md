@@ -20,7 +20,7 @@ The project contains scraper code, provider fixtures, and a public employer cata
 | Oracle Recruiting | Public Candidate Experience API | Supported |
 | iCIMS | Public HTML and JSON-LD | Experimental plugin |
 
-The bundled catalog contains 1,307 live-verified boards. Each core provider has three daily canaries. The project never signs in, solves CAPTCHAs, or bypasses access controls.
+The bundled catalog contains 1,304 live-verified boards. Each core provider has three daily canaries. The project never signs in, solves CAPTCHAs, or bypasses access controls.
 
 ## Install
 

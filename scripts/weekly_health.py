@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
-import random
 import sys
 from pathlib import Path
 
@@ -36,9 +36,21 @@ def select_targets(
                 f"provider '{provider}' has fewer than {per_provider} catalog targets"
             )
         rows = [row for row in raw_rows if isinstance(row, dict)]
-        rows.sort(key=lambda row: (str(row.get("name", "")), str(row.get("slug", ""))))
-        rng = random.Random(f"{seed}:{provider}")
-        for row in rng.sample(rows, per_provider):
+
+        def selection_key(
+            row: dict[str, object], provider_name: str = provider
+        ) -> tuple[bytes, str, str]:
+            identity = (
+                f"{seed}:{provider_name}:{row.get('slug', '')}:{row.get('origin', '')}"
+            )
+            return (
+                hashlib.sha256(identity.encode("utf-8")).digest(),
+                str(row.get("name", "")),
+                str(row.get("slug", "")),
+            )
+
+        rows.sort(key=selection_key)
+        for row in rows[:per_provider]:
             selected.append(Target.from_mapping(provider, row))
     return selected
 

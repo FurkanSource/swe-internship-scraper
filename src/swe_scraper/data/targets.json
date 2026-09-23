@@ -248,14 +248,6 @@
     },
     {
       "name": "Arcesium",
-      "slug": "arcesium",
-      "profiles": [
-        "all",
-        "priority"
-      ]
-    },
-    {
-      "name": "Arcesium",
       "slug": "arcesiumllc",
       "profiles": [
         "all"
@@ -473,13 +465,6 @@
       ]
     },
     {
-      "name": "BitGo",
-      "slug": "bitgointernships",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "BlackEdge Capital",
       "slug": "blackedgecapital",
       "profiles": [
@@ -499,13 +484,6 @@
       "profiles": [
         "all",
         "priority"
-      ]
-    },
-    {
-      "name": "Bloomberg Philanthropies",
-      "slug": "bloombergdotorg",
-      "profiles": [
-        "all"
       ]
     },
     {
@@ -938,13 +916,6 @@
     {
       "name": "Double Good",
       "slug": "doublegood",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "DoubleVerify",
-      "slug": "doubleverify",
       "profiles": [
         "all"
       ]
@@ -3820,13 +3791,6 @@
       ]
     },
     {
-      "name": "Beta Technologies",
-      "slug": "beta",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "BioAgilytix",
       "slug": "bioagilytix",
       "profiles": [
@@ -4025,13 +3989,6 @@
     {
       "name": "Equativ",
       "slug": "equativ",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "EV Realty",
-      "slug": "evrealty-us",
       "profiles": [
         "all"
       ]
@@ -4743,13 +4700,6 @@
     {
       "name": "Tutor Intelligence",
       "slug": "tutorintelligence",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "Veeva Systems",
-      "slug": "veeva",
       "profiles": [
         "all"
       ]
@@ -7129,13 +7079,6 @@
       ]
     },
     {
-      "name": "Turion Space",
-      "slug": "turion-space",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "UiPath",
       "slug": "uipath",
       "profiles": [
@@ -9182,14 +9125,6 @@
       "name": "SHEIN",
       "slug": "shein",
       "origin": "https://fa-exjq-saasfaprod1.fa.ocs.oraclecloud.com",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "Sherwin-Williams",
-      "slug": "cx_2",
-      "origin": "https://ejhp.fa.us6.oraclecloud.com",
       "profiles": [
         "all"
       ]

@@ -4,7 +4,7 @@ This project follows Semantic Versioning.
 
 ## [Unreleased]
 
-## [1.0.0rc1] - 2026-09-21
+## [1.0.0rc1] - Pending
 
 ### Added
 

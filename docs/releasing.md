@@ -26,8 +26,10 @@ therefore has its own publishing job and GitHub environment.
    health report pass on the commit to release.
 2. Run the Release workflow manually on `main`. This builds and attests the
    artifacts without publishing them. Inspect the build artifact and SBOM.
-3. Set the `1.0.0rc1` changelog date to the release date and create a signed
-   `v1.0.0rc1` tag on that verified commit.
+3. Set the candidate changelog date to the release date and create a signed
+   version tag on that verified commit. The `v1.0.0rc1` upload failed before
+   publication because the PyPA action used an annotated tag object SHA;
+   `v1.0.0rc2` uses the verified commit SHA.
 4. Push the tag. Check the Release workflow's build, provenance, both PyPI, and
    GitHub Release jobs, then install both distributions from PyPI in clean environments.
 5. Start the soak window after the release candidate is published. Require seven

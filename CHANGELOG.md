@@ -4,7 +4,7 @@ This project follows Semantic Versioning.
 
 ## [Unreleased]
 
-## [1.0.0rc1] - 2026-09-25
+## [1.0.0rc2] - 2026-09-25
 
 ### Added
 
@@ -22,6 +22,8 @@ This project follows Semantic Versioning.
 - Renamed the transport contract to `HttpClient`; `JsonClient` remains an alias through 1.x.
 - Runtime dependencies now use a compatible Requests range without a direct urllib3 pin.
 - Prepared the package as a standalone public scraper with no tracker or applicant data.
+- Corrected the PyPA publishing action pin. The `rc1` tag's upload failed before
+  any PyPI package or GitHub Release was created.
 
 ## [0.2.0] - 2026-09-20
 

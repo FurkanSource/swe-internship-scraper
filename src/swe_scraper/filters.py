@@ -9,10 +9,16 @@ from .models import Job
 
 INTERNSHIP = re.compile(r"\b(?:intern|internship|co[ -]?op)\b", re.I)
 SOFTWARE = re.compile(
-    r"\b(?:software|developer|programmer|technology|computer|data|"
-    r"machine learning|artificial intelligence|AI|cloud|cyber|security|systems?|"
-    r"quantitative|automation|devops|site reliability|SRE|back[ -]?end|"
-    r"front[ -]?end|full[ -]?stack|mobile|platform|infrastructure)\b",
+    r"\b(?:software|developer|programmer|SWE|SDE|firmware|devops|"
+    r"site reliability|SRE|back[ -]?end|front[ -]?end|full[ -]?stack|"
+    r"(?:data|machine learning|AI|cloud|platform|infrastructure|mobile|security|systems?)"
+    r"[ -]+(?:engineer(?:ing)?|development|developer))\b",
+    re.I,
+)
+ADJACENT = re.compile(
+    r"\b(?:data|analytics|technology|computer science|machine learning|"
+    r"artificial intelligence|AI|cybersecurity|cyber security|information security|"
+    r"quantitative|automation|cloud|platform|infrastructure)\b",
     re.I,
 )
 
@@ -27,6 +33,7 @@ def filter_jobs(
     locations: Iterable[str] = (),
     include_keywords: Iterable[str] = (),
     exclude_keywords: Iterable[str] = (),
+    include_adjacent: bool = False,
 ) -> list[Job]:
     """Filter jobs using explicit public CLI options only."""
     wanted_locations = tuple(value.casefold() for value in locations if value)
@@ -40,7 +47,10 @@ def filter_jobs(
         location_text = " ".join(job.locations).casefold()
         if job.remote:
             location_text += " remote"
-        if not is_swe_internship(job.title):
+        adjacent = (
+            include_adjacent and INTERNSHIP.search(job.title) and ADJACENT.search(job.title)
+        )
+        if not is_swe_internship(job.title) and not adjacent:
             continue
         if wanted_locations and not any(
             value in location_text for value in wanted_locations

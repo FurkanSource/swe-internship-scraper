@@ -32,8 +32,9 @@ def main() -> int:
             [str(python), "-m", "swe_scraper", "scan", "--help"],
             text=True,
         )
-        if "--quick" not in help_text:
-            raise RuntimeError("installed scraper is missing the quick scan option")
+        for option in ("--quick", "--strict", "--include-adjacent"):
+            if option not in help_text:
+                raise RuntimeError(f"installed scraper is missing the {option} option")
         run(
             [
                 str(python),

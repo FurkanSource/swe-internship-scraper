@@ -56,10 +56,21 @@ def _add_scan_options(parser: argparse.ArgumentParser) -> None:
         default="priority",
         help="bundled target profile (default: priority)",
     )
-    parser.add_argument(
+    role_filter = parser.add_mutually_exclusive_group()
+    role_filter.add_argument(
         "--all-jobs",
         action="store_true",
         help="return every ATS posting instead of SWE internships only",
+    )
+    role_filter.add_argument(
+        "--include-adjacent",
+        action="store_true",
+        help="also include adjacent technical internships (analytics, research, IT)",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="exit nonzero on any provider error, after saving available results",
     )
     parser.add_argument(
         "--dedupe-report",
@@ -75,6 +86,7 @@ def _run_scan(args: argparse.Namespace) -> ScanResult:
     options = {
         "max_workers": args.max_workers,
         "filter_swe": not args.all_jobs,
+        "include_adjacent": args.include_adjacent,
         "locations": args.location,
         "include_keywords": args.include,
         "exclude_keywords": args.exclude,
@@ -112,13 +124,19 @@ def _write_result(result: ScanResult, output: Path, output_format: str) -> Path:
     return write_csv(result, output) if selected == "csv" else write_json(result, output)
 
 
+def _scan_exit_code(result: ScanResult, strict: bool) -> int:
+    if result.errors and not result.jobs:
+        return 2
+    return 1 if strict and result.errors else 0
+
+
 def _scan_command(args: argparse.Namespace) -> int:
     result = _run_scan(args)
     target = _write_result(result, args.output, args.format)
     print(f"Wrote {len(result.jobs)} jobs to {target}")
     if result.errors:
         print(f"Completed with {len(result.errors)} provider error(s)", file=sys.stderr)
-    return 2 if result.errors and not result.jobs else 0
+    return _scan_exit_code(result, args.strict)
 
 
 def _validate_command(args: argparse.Namespace) -> int:
@@ -151,8 +169,8 @@ def _watch_command(args: argparse.Namespace) -> int:
                 JsonLinesNotifier(args.notify_jsonl).notify(new_jobs)
             if result.jobs or not result.errors:
                 save_seen(args.state, result.jobs)
-            if args.once:
-                return 2 if result.errors and not result.jobs else 0
+            if args.once or (args.strict and result.errors):
+                return _scan_exit_code(result, args.strict)
             time.sleep(args.interval)
     except KeyboardInterrupt:
         return 130

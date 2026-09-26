@@ -27,10 +27,11 @@ class WorkdayProvider:
         site = str(target.options.get("site") or target.slug).strip()
         endpoint = f"{origin}/wday/cxs/{tenant}/{site}/jobs"
         limit = min(max(int(target.options.get("page_size", 20)), 1), 20)
-        max_pages = min(max(int(target.options.get("max_pages", 5)), 1), 20)
+        max_pages = min(max(int(target.options.get("max_pages", 20)), 1), 20)
         jobs: list[Job] = []
-        last_total: int | None = None
-        last_page_size = 0
+        expected_total: int | None = None
+        seen_ids: set[str] = set()
+        seen_urls: set[str] = set()
         for page in range(max_pages):
             payload = {
                 "appliedFacets": {},
@@ -48,23 +49,53 @@ class WorkdayProvider:
                     f"Workday board '{target.name}' returned non-dict response: "
                     f"{type(data).__name__}"
                 )
-            rows = data.get("jobPostings") or []
-            last_page_size = len(rows)
-            jobs.extend(self.parse_page(target, data))
+            rows = data.get("jobPostings")
             total = data.get("total")
-            last_total = total if isinstance(total, int) else None
-            complete = isinstance(total, int) and (page + 1) * limit >= total
-            if len(rows) < limit or complete:
-                break
-        else:
-            if (last_total is not None and last_total > max_pages * limit) or (
-                last_total is None and last_page_size == limit
+            if (
+                not isinstance(rows, list)
+                or not isinstance(total, int)
+                or isinstance(total, bool)
+                or total < 0
             ):
                 raise RuntimeError(
-                    f"Workday board '{target.name}' exceeded configured pagination "
-                    f"limit ({max_pages} pages)"
+                    f"Workday board '{target.name}' returned invalid pagination data"
                 )
-        return jobs
+            # CXS can report total=0 on continuation pages. The first page's
+            # total remains the completeness contract; zero must not end a scan.
+            if expected_total is None:
+                expected_total = total
+            elif total not in (0, expected_total):
+                raise RuntimeError(
+                    f"Workday board '{target.name}' changed pagination total"
+                )
+            page_jobs = self.parse_page(target, data)
+            if len(page_jobs) != len(rows):
+                raise RuntimeError(
+                    f"Workday board '{target.name}' returned invalid pagination rows"
+                )
+            for job in page_jobs:
+                if job.source_job_id in seen_ids or job.application_url in seen_urls:
+                    raise RuntimeError(
+                        f"Workday board '{target.name}' repeated pagination rows"
+                    )
+                seen_ids.add(job.source_job_id)
+                seen_urls.add(job.application_url)
+            jobs.extend(page_jobs)
+            if len(rows) > limit or len(jobs) > expected_total:
+                raise RuntimeError(
+                    f"Workday board '{target.name}' returned inconsistent pagination counts"
+                )
+            if len(jobs) == expected_total:
+                return jobs
+            if len(rows) < limit:
+                raise RuntimeError(
+                    f"Workday board '{target.name}' returned incomplete pagination "
+                    f"({len(jobs)} of {expected_total} jobs)"
+                )
+        raise RuntimeError(
+            f"Workday board '{target.name}' exceeded configured pagination "
+            f"limit ({max_pages} pages)"
+        )
 
     def parse_page(self, target: Target, payload: Any) -> list[Job]:
         """Normalize one recorded or live Workday CXS result page."""

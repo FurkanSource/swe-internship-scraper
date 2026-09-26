@@ -1,0 +1,26 @@
+{
+  "complete": [
+    {"total": 3, "jobPostings": [
+      {"title": "Software Intern", "externalPath": "/job/Role_R1", "jobReqId": "R1"},
+      {"title": "Backend Intern", "externalPath": "/job/Role_R2", "jobReqId": "R2"}
+    ]},
+    {"total": 3, "jobPostings": [
+      {"title": "Software Intern", "externalPath": "/job/Role_R3", "jobReqId": "R3"}
+    ]}
+  ],
+  "incomplete": [
+    {"total": 40, "jobPostings": [
+      {"title": "Software Intern", "externalPath": "/job/Role_R1", "jobReqId": "R1"}
+    ]}
+  ],
+  "malformed": [
+    {"total": 2, "jobPostings": []},
+    {"total": 1, "jobPostings": [{"title": "Missing application URL"}]},
+    {"total": 1, "jobPostings": "invalid"},
+    {"total": 0},
+    {"jobPostings": []},
+    {"total": -1, "jobPostings": []},
+    {"total": true, "jobPostings": []},
+    {"total": "2", "jobPostings": []}
+  ]
+}

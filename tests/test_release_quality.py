@@ -53,6 +53,13 @@ class FakeResponse:
     def json(self):
         return json.loads(self.content)
 
+    def iter_content(self, chunk_size):
+        for offset in range(0, len(self.content), chunk_size):
+            yield self.content[offset : offset + chunk_size]
+
+    def close(self):
+        pass
+
 
 class FakeSession:
     def __init__(self, response: FakeResponse) -> None:
@@ -267,6 +274,7 @@ class RegistryConfigValidationTests(unittest.TestCase):
                 target_set="priority",
                 max_workers=1,
                 all_jobs=True,
+                include_adjacent=False,
                 location=[],
                 include=[],
                 exclude=[],

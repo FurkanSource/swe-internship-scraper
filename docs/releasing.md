@@ -1,10 +1,16 @@
 # Releasing
 
-The release workflow builds the scraper and experimental iCIMS plugin once, checks
-their distributions, creates an SBOM and checksums, records build provenance, and
-publishes to PyPI before creating a GitHub Release. The `pypi` and `pypi-icims`
-GitHub environments permit version tags. Candidate tags are marked as GitHub
-prereleases; stable version tags are regular releases.
+The release workflow checks both distributions, then selects one independently
+versioned package for its SBOM, checksums, provenance, PyPI upload, and GitHub Release:
+
+| Package | Tag | GitHub environment tag policy |
+| --- | --- | --- |
+| Core scraper | `v<version>` (for example `v1.0.0rc3`) | `pypi`: `v*` |
+| Experimental iCIMS | `icims-v<version>` (for example `icims-v0.1.1`) | `pypi-icims`: `icims-v*` |
+
+The tag must match the selected wheel's version. A core release does not republish
+the plugin; each package needs a new version before another upload. Candidate tags
+are marked as GitHub prereleases; stable version tags are regular releases.
 
 ## First release setup
 
@@ -25,14 +31,17 @@ therefore has its own publishing job and GitHub environment.
 
 1. Confirm the public audit, CI, Security, 18 daily canaries, and 60-target weekly
    health report pass on the commit to release.
-2. Run the Release workflow manually on `main`. This builds and attests the
-   artifacts without publishing them. Inspect the build artifact and SBOM.
+2. Run the Release workflow manually on `main`, selecting `core` or `icims`.
+   This builds and attests only the selected package's release artifacts without
+   publishing them. Inspect the build artifact and SBOM.
 3. Set the candidate changelog date to the release date and create a signed
    version tag on that verified commit. The `v1.0.0rc1` upload failed before
    publication because the PyPA action used an annotated tag object SHA;
    `v1.0.0rc2` uses the verified commit SHA.
-4. Push the tag. Check the Release workflow's build, provenance, both PyPI, and
-   GitHub Release jobs, then install both distributions from PyPI in clean environments.
+4. Push the appropriate package tag. Check the build, provenance, selected PyPI,
+   and GitHub Release jobs (the other PyPI job should be skipped), then install the
+   released distribution from PyPI in clean environments. For an iCIMS release,
+   also verify it installs with the already published core dependency.
 5. Start the soak window after the release candidate is published. Require seven
    consecutive healthy daily runs, one successful weekly sample, clean Windows and
    Linux installs, and no schema or provider regressions.

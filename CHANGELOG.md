@@ -4,7 +4,7 @@ This project follows Semantic Versioning.
 
 ## [Unreleased]
 
-## [1.0.0rc1] - Pending
+## [1.0.0rc1] - 2026-09-25
 
 ### Added
 
@@ -15,6 +15,7 @@ This project follows Semantic Versioning.
 - Per-target health states, provider quorum, 18 daily canaries, and verified catalog expansion.
 - A 350-pair sanitized deduplication benchmark with zero-false-merge release gate.
 - Python 3.10 through 3.14 quality, packaging, security, provenance, and release workflows.
+- A `--quick` sample scan and a short first-run path that does not require a checkout.
 
 ### Changed
 

@@ -263,6 +263,7 @@ class RegistryConfigValidationTests(unittest.TestCase):
             args = mock.Mock(
                 providers=None,
                 targets=None,
+                quick=False,
                 target_set="priority",
                 max_workers=1,
                 all_jobs=True,

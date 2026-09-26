@@ -44,7 +44,13 @@ def _add_scan_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--include", action="append", default=[], help="required keyword")
     parser.add_argument("--exclude", action="append", default=[], help="excluded keyword")
     parser.add_argument("--max-workers", type=int, default=8)
-    parser.add_argument(
+    target_set = parser.add_mutually_exclusive_group()
+    target_set.add_argument(
+        "--quick",
+        action="store_true",
+        help="scan the small sample of monitored boards",
+    )
+    target_set.add_argument(
         "--target-set",
         choices=("priority", "all", "canary"),
         default="priority",
@@ -64,7 +70,8 @@ def _add_scan_options(parser: argparse.ArgumentParser) -> None:
 
 def _run_scan(args: argparse.Namespace) -> ScanResult:
     providers = _csv_values(args.providers)
-    targets = load_targets(args.targets, providers, profile=args.target_set)
+    profile = "canary" if args.quick else args.target_set
+    targets = load_targets(args.targets, providers, profile=profile)
     options = {
         "max_workers": args.max_workers,
         "filter_swe": not args.all_jobs,

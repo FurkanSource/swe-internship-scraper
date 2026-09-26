@@ -75,6 +75,19 @@ class ScannerAndCliTests(unittest.TestCase):
         self.assertIn("company,title", content)
         self.assertIn("Acme,Software Engineering Intern", content)
 
+    def test_quick_scan_uses_sample_boards(self):
+        args = cli.build_parser().parse_args(["scan", "--quick"])
+        with (
+            mock.patch("swe_scraper.cli.load_targets", return_value=[]) as load,
+            mock.patch(
+                "swe_scraper.cli.scan_targets", return_value=ScanResult.from_iterables([])
+            ),
+        ):
+            cli._run_scan(args)
+        load.assert_called_once_with(None, [], profile="canary")
+        with self.assertRaises(SystemExit):
+            cli.build_parser().parse_args(["scan", "--quick", "--target-set", "all"])
+
     def test_watch_once_updates_seen_state(self):
         result = ScanResult.from_iterables([sample_job()])
         with tempfile.TemporaryDirectory() as td:

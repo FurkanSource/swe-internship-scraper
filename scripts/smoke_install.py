@@ -28,6 +28,12 @@ def main() -> int:
         )
         run([str(python), "-m", "pip", "install", str(core), str(plugin)])
         run([str(python), "-m", "swe_scraper", "--version"])
+        help_text = subprocess.check_output(
+            [str(python), "-m", "swe_scraper", "scan", "--help"],
+            text=True,
+        )
+        if "--quick" not in help_text:
+            raise RuntimeError("installed scraper is missing the quick scan option")
         run(
             [
                 str(python),

@@ -4,62 +4,65 @@
 [![Provider health](https://github.com/FurkanSource/swe-internship-scraper/actions/workflows/provider-health.yml/badge.svg)](https://github.com/FurkanSource/swe-internship-scraper/actions/workflows/provider-health.yml)
 [![PyPI](https://img.shields.io/pypi/v/swe-internship-scraper.svg)](https://pypi.org/project/swe-internship-scraper/)
 
-A Python library and CLI for collecting software engineering internships from official public applicant tracking system endpoints.
+A command-line tool for finding software engineering internships on official public job boards.
 
-The project contains scraper code, provider fixtures, and a public employer catalog. It contains no application tracker, applicant profile, database, or personal ranking rules.
+## Quick start
 
-## Supported providers
+**You do not need to clone or download this repository to use the scraper.** Install
+the package with Python 3.10–3.14, then run a small sample scan. The CSV file is
+written to the folder where you run the command.
 
-| Provider | Source | Status |
-| --- | --- | --- |
-| Greenhouse | Public Job Board API | Supported |
-| Lever | Public Postings API | Supported |
-| Ashby | Public Posting API with public GraphQL fallback | Supported |
-| Workday | Public candidate site API | Supported |
-| SmartRecruiters | Public Posting API | Supported |
-| Oracle Recruiting | Public Candidate Experience API | Supported |
-| iCIMS | Public HTML and JSON-LD | Experimental plugin |
-
-The bundled catalog contains 1,295 live-verified boards. Each core provider has three daily canaries. The project never signs in, solves CAPTCHAs, or bypasses access controls.
-
-## Install
-
-Python 3.10 through 3.14 is supported.
+Windows PowerShell:
 
 ```powershell
-py -m pip install swe-internship-scraper
-swe-scraper providers
-swe-scraper scan --output jobs.json
+py -m pip install --pre swe-internship-scraper
+py -m swe_scraper scan --quick --output internships.csv
 ```
 
-For a source checkout:
+macOS or Linux:
 
-```powershell
-py -m venv .venv
-.venv\Scripts\Activate.ps1
-py -m pip install -e .
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install --pre swe-internship-scraper
+.venv/bin/python -m swe_scraper scan --quick --output internships.csv
 ```
 
-The optional iCIMS plugin is released separately:
+Open `internships.csv` in a spreadsheet. `--quick` checks the small set of monitored
+boards; it is a sample, not the full catalog. Omit `--quick` for the default
+priority boards, or use `--target-set all` for the entire catalog. The `--pre`
+install flag is needed while the first release is a release candidate; it can be
+removed for stable `1.0.0`.
 
-```powershell
-py -m pip install swe-scraper-icims
-swe-scraper providers
-```
+Want to run the source code you downloaded from GitHub? Follow the
+[source checkout guide](docs/getting-started.md). It has exact Windows and
+macOS/Linux commands, without requiring PowerShell activation.
+
+## What you install
+
+`swe-internship-scraper` is the main package. It includes the command and six
+providers: Greenhouse, Lever, Ashby, Workday, SmartRecruiters, and Oracle.
+The separate `swe-scraper-icims` package is an **optional, experimental** plugin
+for public iCIMS portals. Most users only need the main package. See the
+[plugin guide](docs/icims-plugin.md) if you have an iCIMS portal to scan.
+
+The repository contains scraper code and a public employer catalog. It does not
+include an application tracker, personal data, or applicant ranking rules.
 
 ## Commands
 
 ```powershell
-swe-scraper scan --output jobs.json
-swe-scraper scan --providers greenhouse,oracle --output jobs.json
-swe-scraper scan --target-set all --max-workers 12 --output all-jobs.json
-swe-scraper scan --dedupe-report dedupe-audit.json --output jobs.json
-swe-scraper validate jobs.json
-swe-scraper watch --interval 21600 --notify-jsonl events.jsonl
-swe-scraper health --output provider-health.json
+py -m swe_scraper scan --output internships.csv
+py -m swe_scraper scan --location "New York" --output nyc-internships.csv
+py -m swe_scraper scan --target-set all --output all-internships.csv
+py -m swe_scraper providers
+py -m swe_scraper --help
 ```
 
-Health exits `0` when every target passes, `1` when each provider still meets quorum with at least one failed target, and `2` for a provider quorum, contract, or pagination failure.
+The installed `swe-scraper` command is equivalent to `py -m swe_scraper` on
+Windows or `python3 -m swe_scraper` in a Python environment on macOS/Linux.
+For JSON output, use a `.json` filename. See the
+[full command guide](docs/command-line.md) for custom targets, watching, health
+checks, and deduplication reports.
 
 ## Output and deduplication
 
@@ -72,40 +75,10 @@ Exact canonical URLs and provider/source identities have confidence `1.0`. Seman
 
 Primary record selection uses completeness and stable lexical tie breakers, so thread completion order does not change output. See [the schema reference](docs/output-schema.md) and [the v2 migration guide](docs/schema-v2-migration.md).
 
-## Provider targets
-
-Custom target files use the same shape as the bundled catalog:
-
-```json
-{
-  "smartrecruiters": [
-    {"name": "Example", "slug": "company-identifier"}
-  ],
-  "oracle": [
-    {
-      "name": "Example",
-      "slug": "CX_1",
-      "origin": "https://example.fa.us2.oraclecloud.com"
-    }
-  ]
-}
-```
-
-Invalid target options fail before any network request. Run `swe-scraper providers --json` to inspect installed providers and required fields.
-
 ## Development
 
-```powershell
-py -m pip install -r requirements-dev.lock -e .
-ruff format --check src tests plugins scripts
-ruff check src tests plugins scripts
-py -m mypy
-py -m coverage run -m unittest discover -s tests -p "test_*.py"
-py -m coverage run --append -m unittest discover -s plugins/icims/tests -p "test_*.py"
-py -m coverage report
-```
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md), [the provider guide](docs/provider-development.md), and [the support policy](SUPPORT.md) before opening an issue or pull request.
+Read [CONTRIBUTING.md](CONTRIBUTING.md), [the provider guide](docs/provider-development.md),
+and [the support policy](SUPPORT.md) before opening an issue or pull request.
 
 ## License
 

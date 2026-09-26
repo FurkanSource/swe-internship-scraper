@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions: {}
 
@@ -26,7 +27,11 @@ jobs:
       - run: check-wheel-contents dist/*.whl
       - run: python -m twine check dist/*
       - run: python scripts/smoke_install.py dist
-      - run: cyclonedx-py requirements requirements.txt --output-file dist/sbom.cdx.json
+      - name: Generate installed-package SBOM
+        run: |
+          python -m venv .sbom-venv
+          .sbom-venv/bin/python -m pip install --no-input --find-links dist dist/*.whl
+          cyclonedx-py environment .sbom-venv/bin/python --output-file dist/sbom.cdx.json
       - run: python scripts/release_manifest.py dist
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -54,6 +59,7 @@ jobs:
 
   publish-pypi:
     needs: [build, provenance]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -74,6 +80,7 @@ jobs:
 
   publish-github:
     needs: [build, provenance, publish-pypi]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       actions: read

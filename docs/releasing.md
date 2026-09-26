@@ -23,11 +23,13 @@ matches both projects, so PyPI can issue a short-lived token scoped to both.
 
 1. Confirm the public audit, CI, Security, 18 daily canaries, and 60-target weekly
    health report pass on the commit to release.
-2. Set the `1.0.0rc1` changelog date to the release date and create a signed
+2. Run the Release workflow manually on `main`. This builds and attests the
+   artifacts without publishing them. Inspect the build artifact and SBOM.
+3. Set the `1.0.0rc1` changelog date to the release date and create a signed
    `v1.0.0rc1` tag on that verified commit.
-3. Push the tag. Check the Release workflow's build, provenance, PyPI, and GitHub
+4. Push the tag. Check the Release workflow's build, provenance, PyPI, and GitHub
    Release jobs, then install both distributions from PyPI in clean environments.
-4. Start the soak window after the release candidate is published. Require seven
+5. Start the soak window after the release candidate is published. Require seven
    consecutive healthy daily runs, one successful weekly sample, clean Windows and
    Linux installs, and no schema or provider regressions.
 

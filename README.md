@@ -33,6 +33,25 @@ priority boards, or use `--target-set all` for the entire catalog. The `--pre`
 install flag is needed while the first release is a release candidate; it can be
 removed for stable `1.0.0`.
 
+### Know what your scan covers
+
+| Mode | Configured employer boards |
+| --- | ---: |
+| `--quick` | 18 monitored sample boards |
+| Default | 73 priority boards |
+| `--target-set all` | 1,295 boards across six providers |
+
+These are catalog counts, not guarantees that every board is available or has
+internships. Matching uses English job titles; generic program names can be
+missed. Employer coverage is uneven, and a remote label does not establish
+eligibility to work from every country. Location filters use text matching.
+
+Scans report failed boards. JSON retains failure details; CSV contains only job
+rows. For automation, use `--strict`: exit 1 means partial results were saved;
+exit 2 means provider errors left no matching jobs, or configuration was invalid.
+A complete scan with zero matches exits 0. See the
+[command guide](docs/command-line.md) and [release roadmap](docs/release-roadmap.md).
+
 Want to run the source code you downloaded from GitHub? Follow the
 [source checkout guide](docs/getting-started.md). It has exact Windows and
 macOS/Linux commands, without requiring PowerShell activation.

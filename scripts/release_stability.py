@@ -142,7 +142,17 @@ def check_remote(repo, config, stable_version):
         "workflow_runs",
     )
     now = dt.datetime.now(UTC)
+    attempts = []
     for run in runs:
+        if timestamp(run["created_at"]) < published:
+            continue
+        # A rerun must not erase a failed observation on the same day.
+        for attempt in range(1, run["run_attempt"]):
+            attempts.append(
+                api(f"repos/{repo}/actions/runs/{run['id']}/attempts/{attempt}")
+            )
+        attempts.append(run)
+    for run in attempts:
         if timestamp(run["created_at"]) < published:
             continue
         if run["status"] != "completed":

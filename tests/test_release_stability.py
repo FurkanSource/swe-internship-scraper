@@ -106,7 +106,9 @@ class ReleaseStabilityTests(unittest.TestCase):
                 )
 
     def test_remote_gate_requires_release_success_and_unexpired_run_bound_artifacts(self):
-        def run_gate(*, release_ok=True, expired=False, mismatch=False, failed=False):
+        def run_gate(
+            *, release_ok=True, expired=False, mismatch=False, failed=False, rerun=False
+        ):
             reports = [report(i) for i in range(7)] + [report(2, "weekly")]
             runs = [
                 {
@@ -118,6 +120,8 @@ class ReleaseStabilityTests(unittest.TestCase):
                 }
                 for i, item in enumerate(reports)
             ]
+            if rerun:
+                runs[0]["run_attempt"] = 2
 
             def pages(path, key):
                 if "release.yml" in path:
@@ -130,17 +134,25 @@ class ReleaseStabilityTests(unittest.TestCase):
                 if key == "workflow_runs":
                     return runs
                 run_id = int(path.split("/runs/")[1].split("/")[0])
-                return [{"id": run_id, "name": f"candidate-{run_id}-1", "expired": expired}]
+                return [
+                    {
+                        "id": run_id * 10 + attempt,
+                        "name": f"candidate-{run_id}-{attempt}",
+                        "expired": expired,
+                    }
+                    for attempt in range(1, runs[run_id]["run_attempt"] + 1)
+                ]
 
             def command(*args):
                 if args[:2] == ("git", "rev-parse"):
                     return b"a" * 40
                 if args[:2] == ("git", "diff"):
                     return b""
-                index = int(args[2].split("/artifacts/")[1].split("/")[0])
+                artifact_id = int(args[2].split("/artifacts/")[1].split("/")[0])
+                index, attempt = divmod(artifact_id, 10)
                 data = reports[index] | {
                     "run_id": index + (1 if mismatch else 0),
-                    "run_attempt": 1,
+                    "run_attempt": attempt,
                 }
                 buffer = io.BytesIO()
                 with zipfile.ZipFile(buffer, "w") as archive:
@@ -153,7 +165,11 @@ class ReleaseStabilityTests(unittest.TestCase):
                 mock.patch("scripts.release_stability.command", side_effect=command),
                 mock.patch(
                     "scripts.release_stability.api",
-                    return_value={
+                    side_effect=lambda path: (
+                        runs[0] | {"run_attempt": 1, "conclusion": "failure"}
+                    )
+                    if "/attempts/" in path
+                    else {
                         "draft": False,
                         "prerelease": True,
                         "published_at": PUBLISHED.isoformat(),
@@ -173,6 +189,7 @@ class ReleaseStabilityTests(unittest.TestCase):
             {"expired": True},
             {"mismatch": True},
             {"failed": True},
+            {"rerun": True},
         ):
             with self.subTest(options=options), self.assertRaises(ValueError):
                 run_gate(**options)

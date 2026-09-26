@@ -9,6 +9,12 @@ from typing import Any
 
 from ..models import Job
 from ..normalize import iso_datetime, normalize_locations
+from ._reliability import (
+    PaginationTotalChanged,
+    detail_workers,
+    ordered_details,
+    restart_on_total_change,
+)
 from .base import HttpClient, Target
 
 
@@ -55,11 +61,31 @@ class SmartRecruitersProvider:
             raise ValueError("SmartRecruiters page_size must be between 1 and 100")
         if not 1 <= max_pages <= 100:
             raise ValueError("SmartRecruiters max_pages must be between 1 and 100")
+        detail_workers(target)
 
     def fetch(self, target: Target, client: HttpClient) -> list[Job]:
         self.validate_target(target)
         company = urllib.parse.quote(target.slug, safe="")
         endpoint = f"https://api.smartrecruiters.com/v1/companies/{company}/postings"
+        workers = detail_workers(target)
+        posting_ids = restart_on_total_change(
+            lambda: self._fetch_posting_ids(target, client, endpoint)
+        )
+
+        def fetch_detail(source_id: str) -> Job:
+            detail = client.get_json(f"{endpoint}/{urllib.parse.quote(source_id, safe='')}")
+            parsed = self.parse_detail(target, detail)
+            if parsed is None:
+                raise RuntimeError(
+                    f"SmartRecruiters posting '{source_id}' returned malformed details"
+                )
+            return parsed
+
+        return ordered_details(fetch_detail, posting_ids, workers)
+
+    def _fetch_posting_ids(
+        self, target: Target, client: HttpClient, endpoint: str
+    ) -> list[str]:
         page_size = int(target.options.get("page_size", 100))
         max_pages = int(target.options.get("max_pages", 100))
         posting_ids: list[str] = []
@@ -83,14 +109,14 @@ class SmartRecruitersProvider:
                     f"SmartRecruiters board '{target.name}' returned a malformed page"
                 )
             total = payload.get("totalFound")
-            if not isinstance(total, int) or total < 0:
+            if isinstance(total, bool) or not isinstance(total, int) or total < 0:
                 raise RuntimeError(
                     f"SmartRecruiters board '{target.name}' omitted totalFound"
                 )
             if expected_total is None:
                 expected_total = total
             elif total != expected_total:
-                raise RuntimeError(
+                raise PaginationTotalChanged(
                     f"SmartRecruiters board '{target.name}' changed totalFound "
                     "during pagination"
                 )
@@ -100,13 +126,19 @@ class SmartRecruitersProvider:
                 for row in rows
                 if isinstance(row, dict) and str(row.get("id") or "").strip()
             ]
-            if any(value in seen_ids for value in page_ids):
+            if len(page_ids) != len(rows):
+                raise RuntimeError("SmartRecruiters page contains a job without an ID")
+            if len(set(page_ids)) != len(page_ids) or any(
+                value in seen_ids for value in page_ids
+            ):
                 raise RuntimeError(
                     f"SmartRecruiters board '{target.name}' repeated a pagination page"
                 )
             posting_ids.extend(page_ids)
             seen_ids.update(page_ids)
             offset += len(rows)
+            if offset > total:
+                raise RuntimeError("SmartRecruiters page exceeded totalFound")
             if offset >= total:
                 complete = True
                 break
@@ -121,16 +153,7 @@ class SmartRecruitersProvider:
                 "pagination limit"
             )
 
-        jobs: list[Job] = []
-        for source_id in posting_ids:
-            detail = client.get_json(f"{endpoint}/{urllib.parse.quote(source_id, safe='')}")
-            parsed = self.parse_detail(target, detail)
-            if parsed is None:
-                raise RuntimeError(
-                    f"SmartRecruiters posting '{source_id}' returned malformed details"
-                )
-            jobs.append(parsed)
-        return jobs
+        return posting_ids
 
     def parse_detail(self, target: Target, payload: Any) -> Job | None:
         if not isinstance(payload, dict):

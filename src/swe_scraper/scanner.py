@@ -92,14 +92,14 @@ def scan_targets_detailed(
                     )
                 )
 
-    if filter_swe:
-        jobs = filter_jobs(
-            jobs,
-            include_adjacent=include_adjacent,
-            locations=locations,
-            include_keywords=include_keywords,
-            exclude_keywords=exclude_keywords,
-        )
+    jobs = filter_jobs(
+        jobs,
+        filter_swe=filter_swe,
+        include_adjacent=include_adjacent,
+        locations=locations,
+        include_keywords=include_keywords,
+        exclude_keywords=exclude_keywords,
+    )
     deduplication = deduplicate_with_audit(jobs)
     errors.sort(key=lambda error: (error.provider, error.company.casefold(), error.slug))
     return ScanDetails(

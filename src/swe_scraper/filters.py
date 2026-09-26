@@ -34,6 +34,7 @@ def filter_jobs(
     include_keywords: Iterable[str] = (),
     exclude_keywords: Iterable[str] = (),
     include_adjacent: bool = False,
+    filter_swe: bool = True,
 ) -> list[Job]:
     """Filter jobs using explicit public CLI options only."""
     wanted_locations = tuple(value.casefold() for value in locations if value)
@@ -50,7 +51,7 @@ def filter_jobs(
         adjacent = (
             include_adjacent and INTERNSHIP.search(job.title) and ADJACENT.search(job.title)
         )
-        if not is_swe_internship(job.title) and not adjacent:
+        if filter_swe and not is_swe_internship(job.title) and not adjacent:
             continue
         if wanted_locations and not any(
             value in location_text for value in wanted_locations

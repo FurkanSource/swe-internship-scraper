@@ -95,9 +95,8 @@ def scan_urls(root: Path) -> tuple[int, list[str]]:
     failures: list[str] = []
     for provider, targets in catalog.items():
         for target in targets:
-            options = target.get("options", {})
             for key in ("origin", "search_url"):
-                value = options.get(key)
+                value = target.get(key)
                 if value:
                     checked += 1
                     validate_url(value, f"{provider}:{target['name']}:{key}", failures)

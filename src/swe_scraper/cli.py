@@ -8,6 +8,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import TextIO
 
 from . import __version__
 from .config import load_targets
@@ -19,6 +20,15 @@ from .providers.registry import DEFAULT_REGISTRY
 from .scanner import scan_targets, scan_targets_detailed
 from .validation import validate_file
 from .watch import load_seen, save_seen, unseen_jobs
+
+
+def _console_print(message: str, *, file: TextIO | None = None) -> None:
+    """Preserve Unicode in exports while escaping unsupported console characters."""
+    stream = file if file is not None else sys.stdout
+    encoding = getattr(stream, "encoding", None)
+    encoding = encoding if isinstance(encoding, str) else "utf-8"
+    safe = message.encode(encoding, errors="backslashreplace").decode(encoding)
+    print(safe, file=stream)
 
 
 def _csv_values(values: list[str] | None) -> list[str]:
@@ -80,6 +90,11 @@ def _add_scan_options(parser: argparse.ArgumentParser) -> None:
 
 
 def _run_scan(args: argparse.Namespace) -> ScanResult:
+    if args.quick and args.targets is not None:
+        raise ValueError(
+            "--quick uses bundled canaries; for custom --targets use "
+            "--target-set canary and explicit canary profiles"
+        )
     providers = _csv_values(args.providers)
     profile = "canary" if args.quick else args.target_set
     targets = load_targets(args.targets, providers, profile=profile)
@@ -133,20 +148,22 @@ def _scan_exit_code(result: ScanResult, strict: bool) -> int:
 def _scan_command(args: argparse.Namespace) -> int:
     result = _run_scan(args)
     target = _write_result(result, args.output, args.format)
-    print(f"Wrote {len(result.jobs)} jobs to {target}")
+    _console_print(f"Wrote {len(result.jobs)} jobs to {target}")
     if result.errors:
-        print(f"Completed with {len(result.errors)} provider error(s)", file=sys.stderr)
+        _console_print(
+            f"Completed with {len(result.errors)} provider error(s)", file=sys.stderr
+        )
     return _scan_exit_code(result, args.strict)
 
 
 def _validate_command(args: argparse.Namespace) -> int:
     report = validate_file(args.path)
     if report.valid:
-        print(f"Valid: {report.jobs} job record(s)")
+        _console_print(f"Valid: {report.jobs} job record(s)")
         return 0
-    print(f"Invalid: {len(report.errors)} error(s)", file=sys.stderr)
+    _console_print(f"Invalid: {len(report.errors)} error(s)", file=sys.stderr)
     for error in report.errors[:20]:
-        print(f"  - {error}", file=sys.stderr)
+        _console_print(f"  - {error}", file=sys.stderr)
     return 1
 
 
@@ -159,12 +176,12 @@ def _watch_command(args: argparse.Namespace) -> int:
             target = _write_result(result, args.output, args.format)
             seen = load_seen(args.state)
             new_jobs = unseen_jobs(result.jobs, seen)
-            print(
+            _console_print(
                 f"Wrote {len(result.jobs)} jobs to {target}; "
                 f"{len(new_jobs)} new; {len(result.errors)} provider error(s)"
             )
             for job in new_jobs[:20]:
-                print(f"  {job.company} — {job.title}: {job.application_url}")
+                _console_print(f"  {job.company} — {job.title}: {job.application_url}")
             if new_jobs and args.notify_jsonl:
                 JsonLinesNotifier(args.notify_jsonl).notify(new_jobs)
             if result.jobs or not result.errors:
@@ -190,7 +207,7 @@ def _health_command(args: argparse.Namespace) -> int:
         encoding="utf-8",
     )
     os.replace(temporary, args.output)
-    print(
+    _console_print(
         f"Provider health is {report.status.value}: "
         f"{len(report.provider_statuses)} providers checked"
     )
@@ -200,12 +217,12 @@ def _health_command(args: argparse.Namespace) -> int:
 def _providers_command(args: argparse.Namespace) -> int:
     inventory = DEFAULT_REGISTRY.describe()
     if args.json:
-        print(json.dumps(inventory, indent=2, ensure_ascii=False))
+        _console_print(json.dumps(inventory, indent=2, ensure_ascii=True))
         return 0
     for row in inventory:
         source = "built-in" if row["builtin"] else "plugin"
         required = ", ".join(row["required_options"]) or "none"
-        print(f"{row['name']} ({source}) - required target options: {required}")
+        _console_print(f"{row['name']} ({source}) - required target options: {required}")
     return 0
 
 
@@ -265,4 +282,5 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return int(args.handler(args))
     except (OSError, RuntimeError, ValueError) as exc:
-        parser.exit(2, f"error: {exc}\n")
+        _console_print(f"error: {exc}", file=sys.stderr)
+        parser.exit(2)

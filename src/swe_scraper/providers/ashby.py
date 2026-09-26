@@ -102,13 +102,25 @@ class AshbyProvider:
                     raise RuntimeError(
                         f"Ashby board '{target.slug}' not found (jobBoard is null)"
                     ) from public_error
-                postings = board.get("jobPostings") or {}
+                postings = board.get("jobPostings")
                 if isinstance(postings, list):
                     nodes.extend(postings)
                     break
-                nodes.extend(postings.get("nodes") or [])
-                page_info = postings.get("pageInfo") or {}
-                if not page_info.get("hasNextPage"):
+                if not isinstance(postings, dict) or not isinstance(
+                    postings.get("nodes"), list
+                ):
+                    raise ValueError(
+                        "Ashby GraphQL response must contain a postings list"
+                    ) from public_error
+                nodes.extend(postings["nodes"])
+                page_info = postings.get("pageInfo")
+                if not isinstance(page_info, dict) or not isinstance(
+                    page_info.get("hasNextPage"), bool
+                ):
+                    raise ValueError(
+                        "Ashby GraphQL pagination requires boolean hasNextPage"
+                    ) from public_error
+                if not page_info["hasNextPage"]:
                     break
                 next_cursor = str(page_info.get("endCursor") or "")
                 if not next_cursor:
@@ -129,7 +141,17 @@ class AshbyProvider:
                     f"({max_pages} pages) with more postings remaining; marked incomplete"
                 ) from public_error
             payload = {"jobPostings": nodes}
-        return self.parse(target, payload)
+        if not isinstance(payload, dict):
+            raise ValueError("Ashby response must be a job-board object")
+        rows = payload.get("jobs") if "jobs" in payload else payload.get("jobPostings")
+        if isinstance(rows, dict):
+            rows = rows.get("nodes")
+        if not isinstance(rows, list):
+            raise ValueError("Ashby response must contain a postings list")
+        jobs = self.parse(target, {"jobs": rows})
+        if len(jobs) != len(rows):
+            raise ValueError("Ashby response contains malformed job records")
+        return jobs
 
     def parse(self, target: Target, payload: Any) -> list[Job]:
         """Normalize either supported Ashby public response shape."""

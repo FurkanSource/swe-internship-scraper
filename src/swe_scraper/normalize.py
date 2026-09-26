@@ -84,6 +84,13 @@ def iso_datetime(value: Any) -> str:
     if value in (None, ""):
         return ""
     try:
+        # Eight-digit strings are calendar dates; numeric values remain epochs.
+        if isinstance(value, str) and re.fullmatch(r"[0-9]{8}", value.strip()):
+            return (
+                dt.datetime.strptime(value.strip(), "%Y%m%d")
+                .replace(tzinfo=dt.timezone.utc)
+                .isoformat()
+            )
         if isinstance(value, (int, float)) or str(value).strip().isdigit():
             stamp = float(value)
             if stamp > 10_000_000_000:

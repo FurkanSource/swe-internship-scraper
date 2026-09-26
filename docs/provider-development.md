@@ -44,3 +44,19 @@ repeated jobs, and changed nonzero totals fail the board instead of returning a
 partial success. By default, requests use 20 postings per page and at most 20 pages
 (400 postings). A target can set smaller `page_size` or `max_pages` limits;
 exhausting a limit before the original total is reached is an error.
+
+`search_text` defaults to `"intern"`; set it to `""` to search without that term.
+Surrounding site slashes are normalized, and embedded path separators are rejected.
+
+### SmartRecruiters and Oracle details
+
+Both adapters fetch details with four workers by default. Set `detail_workers`
+from 1 through 8 to adjust concurrency; use 1 with a custom HTTP client that is
+not thread safe. The built-in client's per-host request spacing still applies.
+Output order follows the listing order, regardless of detail completion order.
+
+If a listing total changes during pagination, the adapter discards that attempt
+and restarts listing once. Each attempt retains its configured page ceiling, so
+at most twice that many list requests are made. A second total change, malformed
+detail, repeated page, or incomplete response still fails the board. This avoids
+reporting a partial board as complete.

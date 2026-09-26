@@ -60,7 +60,7 @@ class SmartRecruitersFailureTests(unittest.TestCase):
             calls += 1
             return {
                 "content": [{"id": str(calls)}],
-                "totalFound": 2 if calls == 1 else 3,
+                "totalFound": 2 if calls % 2 else 3,
             }
 
         with self.assertRaisesRegex(RuntimeError, "changed totalFound"):
@@ -185,7 +185,7 @@ class OracleFailureTests(unittest.TestCase):
             return {
                 "items": [
                     {
-                        "TotalJobsCount": 2 if calls == 1 else 3,
+                        "TotalJobsCount": 2 if calls % 2 else 3,
                         "requisitionList": {
                             "items": [{"Id": str(calls), "Title": "One"}],
                             "hasMore": False,

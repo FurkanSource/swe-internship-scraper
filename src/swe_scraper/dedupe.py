@@ -31,7 +31,6 @@ class DeduplicationResult:
 
 
 _LEGAL_SUFFIXES = {"co", "company", "corp", "corporation", "inc", "llc", "ltd"}
-_TITLE_NOISE = {"internship"}
 _LOCATION_ALIASES = {
     "nyc": "new york ny",
     "new york city": "new york ny",
@@ -62,7 +61,7 @@ def _title_words(value: str) -> tuple[str, ...]:
         "internship": "intern",
     }
     words = [aliases.get(word, word) for word in _words(value)]
-    return tuple(sorted(word for word in words if word not in _TITLE_NOISE))
+    return tuple(sorted(words))
 
 
 def _title_key(value: str) -> str:
@@ -88,16 +87,32 @@ def identity_key(job: Job) -> tuple[str, str]:
     return job.provider.casefold(), job.source_job_id.casefold()
 
 
+def _exact_keys(job: Job) -> set[tuple[str, ...]]:
+    sources = (
+        *job.sources,
+        JobSource(job.provider, job.source_job_id, job.application_url),
+    )
+    keys: set[tuple[str, ...]] = set()
+    for source in sources:
+        if url := canonical_url(source.application_url):
+            keys.add(("url", url))
+        keys.add(("source", source.provider.casefold(), source.source_job_id.casefold()))
+    return keys
+
+
+def _exact_match(existing: Job, incoming: Job) -> DuplicateMatch | None:
+    shared = _exact_keys(existing) & _exact_keys(incoming)
+    if any(key[0] == "url" for key in shared):
+        return DuplicateMatch("exact_url", 1.0)
+    if shared:
+        return DuplicateMatch("source_identity", 1.0)
+    return None
+
+
 def duplicate_match(existing: Job, incoming: Job) -> DuplicateMatch | None:
     """Return evidence only when two records are safe to merge automatically."""
-    if canonical_url(existing.application_url) == canonical_url(incoming.application_url):
-        return DuplicateMatch("exact_url", 1.0)
-    identities = {
-        (source.provider.casefold(), source.source_job_id.casefold())
-        for source in existing.sources
-    }
-    if (incoming.provider.casefold(), incoming.source_job_id.casefold()) in identities:
-        return DuplicateMatch("source_identity", 1.0)
+    if exact := _exact_match(existing, incoming):
+        return exact
     if _company_key(existing.company) != _company_key(incoming.company):
         return None
     if _title_key(existing.title) != _title_key(incoming.title):
@@ -226,49 +241,56 @@ def merge_jobs(existing: Job, incoming: Job, match: DuplicateMatch | None = None
     )
 
 
+def _exact_components(jobs: Iterable[Job]) -> list[Job]:
+    """Union every existing component reached by a record's exact identities."""
+    groups: dict[int, Job] = {}
+    owners: dict[tuple[str, ...], int] = {}
+    for index, job in enumerate(sorted(jobs, key=_job_sort_key)):
+        matches = sorted({owners[key] for key in _exact_keys(job) if key in owners})
+        root = matches[0] if matches else index
+        if matches:
+            first = groups[root]
+            job = merge_jobs(first, job, _exact_match(first, job))
+            for other in matches[1:]:
+                member = groups.pop(other)
+                job = merge_jobs(job, member, _exact_match(job, member))
+        groups[root] = job
+        for key in _exact_keys(job):
+            owners[key] = root
+    return sorted(groups.values(), key=_job_sort_key)
+
+
 def deduplicate(jobs: Iterable[Job]) -> list[Job]:
     merged: list[Job] = []
-    exact_index: dict[str, int] = {}
-    source_index: dict[tuple[str, str], int] = {}
-    semantic_index: dict[tuple[str, str, str], int] = {}
-    for job in sorted(jobs, key=_job_sort_key):
-        canonical = canonical_url(job.application_url)
-        match_index = exact_index.get(canonical) if canonical else None
-        source_key = (job.provider.casefold(), job.source_job_id.casefold())
+    common_locations: list[set[str]] = []
+    semantic_index: dict[tuple[str, str, str], list[int]] = {}
+    for job in _exact_components(jobs):
+        company, title = _company_key(job.company), _title_key(job.title)
+        locations = _location_keys(job)
+        candidates = {
+            index
+            for location in locations
+            for index in semantic_index.get((company, title, location), [])
+        }
+        match_index = next(
+            (index for index in sorted(candidates) if common_locations[index] & locations),
+            None,
+        )
         if match_index is None:
-            match_index = source_index.get(source_key)
-        match: DuplicateMatch | None = None
-        if match_index is not None:
-            match = duplicate_match(merged[match_index], job)
-        else:
-            company = _company_key(job.company)
-            title = _title_key(job.title)
-            for location in sorted(_location_keys(job)):
-                candidate = semantic_index.get((company, title, location))
-                if candidate is None:
-                    continue
-                candidate_match = duplicate_match(merged[candidate], job)
-                if candidate_match is not None:
-                    match_index = candidate
-                    match = candidate_match
-                    break
-        if match_index is None or match is None:
             match_index = len(merged)
             merged.append(job)
+            common_locations.append(locations)
+            for location in locations:
+                semantic_index.setdefault((company, title, location), []).append(
+                    match_index
+                )
         else:
-            merged[match_index] = merge_jobs(merged[match_index], job, match)
-        current = merged[match_index]
-        for source in current.sources:
-            source_url = canonical_url(source.application_url)
-            if source_url:
-                exact_index[source_url] = match_index
-            source_index[(source.provider.casefold(), source.source_job_id.casefold())] = (
-                match_index
+            merged[match_index] = merge_jobs(
+                merged[match_index], job, DuplicateMatch("company_title_location", 0.93)
             )
-        company = _company_key(current.company)
-        title = _title_key(current.title)
-        for location in _location_keys(current):
-            semantic_index[(company, title, location)] = match_index
+            # A semantic group must retain a location shared by every component.
+            # A multi-city record cannot bridge otherwise disjoint postings.
+            common_locations[match_index] &= locations
     return sorted(merged, key=_job_sort_key)
 
 

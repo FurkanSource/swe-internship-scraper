@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from ..models import Job
 from ..normalize import normalize_locations
 from .base import JsonClient, Target
+
+
+def _site_name(target: Target) -> str:
+    return str(target.options.get("site") or target.slug).strip().strip("/")
 
 
 class WorkdayProvider:
@@ -16,15 +21,20 @@ class WorkdayProvider:
     def validate_target(self, target: Target) -> None:
         origin = str(target.options.get("origin") or "").rstrip("/")
         tenant = str(target.options.get("tenant") or "").strip()
-        site = str(target.options.get("site") or target.slug).strip()
-        if not origin.startswith("https://") or not tenant or not site:
+        site = _site_name(target)
+        if (
+            not origin.startswith("https://")
+            or not tenant
+            or not re.fullmatch(r"[\w.-]+", site)
+            or site in {".", ".."}
+        ):
             raise ValueError("Workday target requires HTTPS origin, tenant, and site")
 
     def fetch(self, target: Target, client: JsonClient) -> list[Job]:
         self.validate_target(target)
         origin = str(target.options.get("origin") or "").rstrip("/")
         tenant = str(target.options.get("tenant") or "").strip()
-        site = str(target.options.get("site") or target.slug).strip()
+        site = _site_name(target)
         endpoint = f"{origin}/wday/cxs/{tenant}/{site}/jobs"
         limit = min(max(int(target.options.get("page_size", 20)), 1), 20)
         max_pages = min(max(int(target.options.get("max_pages", 20)), 1), 20)
@@ -37,7 +47,7 @@ class WorkdayProvider:
                 "appliedFacets": {},
                 "limit": limit,
                 "offset": page * limit,
-                "searchText": str(target.options.get("search_text") or "intern"),
+                "searchText": str(target.options.get("search_text", "intern")),
             }
             data = client.post_json(
                 endpoint,
@@ -103,7 +113,7 @@ class WorkdayProvider:
             return []
         origin = str(target.options.get("origin") or "").rstrip("/")
         tenant = str(target.options.get("tenant") or "").strip()
-        site = str(target.options.get("site") or target.slug).strip()
+        site = _site_name(target)
         jobs: list[Job] = []
         for row in payload.get("jobPostings") or []:
             if not isinstance(row, dict):

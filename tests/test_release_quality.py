@@ -171,6 +171,11 @@ class HealthExecutionTests(unittest.TestCase):
         categories = {check.target: check.category for check in report.checks}
         self.assertEqual(categories["empty"], "empty")
         self.assertEqual(categories["invalid"], "contract")
+        empty = next(check for check in report.checks if check.target == "empty")
+        self.assertEqual(empty.status, HealthStatus.HEALTHY)
+        self.assertEqual(empty.job_count, 0)
+        self.assertEqual(empty.error, "")
+        self.assertTrue(empty.pagination_complete)
 
 
 class RegistryConfigValidationTests(unittest.TestCase):

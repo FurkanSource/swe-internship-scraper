@@ -22,7 +22,12 @@ class LeverProvider:
         self.validate_target(target)
         slug = urllib.parse.quote(target.slug, safe="")
         payload = client.get_json(f"https://api.lever.co/v0/postings/{slug}?mode=json")
-        return self.parse(target, payload)
+        if not isinstance(payload, list):
+            raise ValueError("Lever response must be a postings list")
+        jobs = self.parse(target, payload)
+        if len(jobs) != len(payload):
+            raise ValueError("Lever response contains malformed job records")
+        return jobs
 
     def parse(self, target: Target, payload: Any) -> list[Job]:
         """Normalize one recorded or live Lever board response."""

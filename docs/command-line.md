@@ -29,7 +29,8 @@ Filters apply to job results; they do not reduce the number of boards fetched.
 The default matches software internship titles, including SWE, backend, firmware,
 and data engineering. Title matching is a heuristic; review the actual posting.
 Use `--include-adjacent` to also consider analytics, quantitative research, and
-other technical internships. Use `--all-jobs` to disable job filtering entirely.
+other technical internships. Use `--all-jobs` to disable the software-internship
+requirement. Explicit `--location`, `--include`, and `--exclude` filters still apply.
 These two options are mutually exclusive.
 
 If some boards fail, the command reports their error count. JSON output also
@@ -64,6 +65,11 @@ The example file uses placeholder company IDs, so replace them with real public
 boards before scanning. Provider inventory shows each provider and its required
 target options. Invalid options fail before the scraper makes a request.
 
+Custom targets without `profiles` belong to `priority` and `all`. To include a
+custom board in health checks or `--target-set canary`, explicitly give it
+`"profiles": ["canary"]` (plus any other desired profiles). `--quick` uses only
+the bundled canaries and cannot be combined with `--targets`.
+
 ## Reports and repeated scans
 
 ```powershell
@@ -80,5 +86,12 @@ same exit codes as `scan --strict`, after saving available results and watch sta
 `health` checks the monitored boards and exits `0` when all pass, `1` when a
 provider still meets quorum despite a failed board, and `2` for a provider
 quorum, contract, or pagination failure.
+
+A valid, complete board with zero open jobs is healthy. Set a target's `min_jobs`
+to a nonnegative integer to enforce an explicit minimum during health checks.
+Malformed responses still fail, even if they contain no usable jobs.
+
+On consoles that cannot display a job's characters, console output uses escaped
+characters. JSON files and saved watch state retain the original text.
 
 For the optional iCIMS provider, see the [plugin guide](icims-plugin.md).

@@ -15,6 +15,11 @@ A core provider must have:
 
 Contract regressions that can return incomplete data are release blocking.
 
+A successful, complete response with no open jobs is healthy. Targets may specify
+`min_jobs` to require a minimum count in health checks; falling below it is
+unhealthy. Malformed payloads and pagination failures remain contract failures,
+not healthy empty boards. Provider quorum still requires two passing canaries.
+
 ## Experimental providers
 
 HTML integrations ship as separate 0.x plugins. They must follow same-origin links, respect access controls, and prefer structured data. Markup changes may require plugin updates without a core release.

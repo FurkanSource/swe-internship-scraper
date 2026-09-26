@@ -6,6 +6,15 @@ This project follows Semantic Versioning.
 
 ### Fixed
 
+- Preserve explicit location and keyword constraints with `--all-jobs`.
+- Honor empty Workday searches and normalize site slashes.
+- Parse compact calendar dates before Unix timestamps.
+- Join transitive exact identities while preventing uncertain semantic bridges.
+- Require explicit custom canary profiles and clarify profile selection errors.
+- Audit top-level catalog origins and safely display Unicode on legacy consoles.
+- Treat valid empty boards as healthy and reject malformed fetch payloads.
+- Fetch SmartRecruiters and Oracle details concurrently with bounded workers;
+  retry total drift once from the beginning while preserving completeness checks.
 - Reject incomplete, repeated, malformed, or inconsistent Workday pagination.
 - Enforce response size limits while streaming JSON and HTML, and release connections.
 - Publish core and iCIMS independently with version-checked `v*` and `icims-v*` tags.

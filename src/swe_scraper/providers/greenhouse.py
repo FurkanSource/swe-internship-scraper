@@ -30,7 +30,12 @@ class GreenhouseProvider:
         slug = urllib.parse.quote(target.slug, safe="")
         endpoint = f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true"
         payload = client.get_json(endpoint)
-        return self.parse(target, payload)
+        if not isinstance(payload, dict) or not isinstance(payload.get("jobs"), list):
+            raise ValueError("Greenhouse response must contain a jobs list")
+        jobs = self.parse(target, payload)
+        if len(jobs) != len(payload["jobs"]):
+            raise ValueError("Greenhouse response contains malformed job records")
+        return jobs
 
     def parse(self, target: Target, payload: Any) -> list[Job]:
         """Normalize one recorded or live Greenhouse board response."""

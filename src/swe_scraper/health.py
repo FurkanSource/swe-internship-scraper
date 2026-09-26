@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from time import perf_counter
 
-from .models import ScanResult
+from .models import Job, ScanResult
 from .providers import Target, get_provider
 from .providers.base import HttpClient
 from .providers.http import RequestsJsonClient
@@ -188,26 +188,31 @@ def run_health_checks(
     max_workers: int = 8,
     quorum: int = 2,
 ) -> TargetHealthReport:
-    """Fetch each canary independently and return categorized target results."""
+    """Fetch canaries, enforcing each target's optional nonnegative integer min_jobs."""
     target_list = list(targets)
     http = client or RequestsJsonClient()
 
     def check_one(target: Target) -> TargetHealth:
         started = perf_counter()
         try:
+            min_jobs = target.options.get("min_jobs", 0)
+            if not isinstance(min_jobs, int) or isinstance(min_jobs, bool) or min_jobs < 0:
+                raise ValueError("min_jobs must be a nonnegative integer")
             provider = get_provider(target.provider)
             provider.validate_target(target)
             jobs = provider.fetch(target, http)
+            if not isinstance(jobs, list) or any(not isinstance(job, Job) for job in jobs):
+                raise ValueError("provider must return a list of Job objects")
             elapsed = perf_counter() - started
-            if not jobs:
+            if len(jobs) < min_jobs:
                 return TargetHealth(
                     target.provider,
                     target.name,
                     HealthStatus.UNHEALTHY,
-                    0,
+                    len(jobs),
                     elapsed,
-                    "provider returned no jobs",
-                    "empty",
+                    f"provider returned {len(jobs)} jobs; expected at least {min_jobs}",
+                    "below_expected_count",
                 )
             return TargetHealth(
                 target.provider,
@@ -215,6 +220,7 @@ def run_health_checks(
                 HealthStatus.HEALTHY,
                 len(jobs),
                 elapsed,
+                category="empty" if not jobs else "",
             )
         except Exception as exc:
             category = _failure_category(exc)

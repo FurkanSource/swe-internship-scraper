@@ -2,8 +2,8 @@
 
 The release workflow builds the scraper and experimental iCIMS plugin once, checks
 their distributions, creates an SBOM and checksums, records build provenance, and
-publishes to PyPI before creating a GitHub Release. The `pypi` GitHub environment
-permits version tags.
+publishes to PyPI before creating a GitHub Release. The `pypi` and `pypi-icims`
+GitHub environments permit version tags.
 
 ## First release setup
 
@@ -13,11 +13,12 @@ from the PyPI account that will own the distributions:
 | PyPI project | GitHub owner | Repository | Workflow | Environment |
 | --- | --- | --- | --- | --- |
 | `swe-internship-scraper` | `FurkanSource` | `swe-internship-scraper` | `release.yml` | `pypi` |
-| `swe-scraper-icims` | `FurkanSource` | `swe-internship-scraper` | `release.yml` | `pypi` |
+| `swe-scraper-icims` | `FurkanSource` | `swe-internship-scraper` | `release.yml` | `pypi-icims` |
 
 Pending publishers do not reserve project names until the first upload. Check both
-names again immediately before publishing. The PyPI publishing job's OIDC identity
-matches both projects, so PyPI can issue a short-lived token scoped to both.
+names again immediately before publishing. PyPI rejects two pending publishers
+with the same GitHub owner, repository, workflow, and environment. Each package
+therefore has its own publishing job and GitHub environment.
 
 ## Release candidate
 
@@ -27,8 +28,8 @@ matches both projects, so PyPI can issue a short-lived token scoped to both.
    artifacts without publishing them. Inspect the build artifact and SBOM.
 3. Set the `1.0.0rc1` changelog date to the release date and create a signed
    `v1.0.0rc1` tag on that verified commit.
-4. Push the tag. Check the Release workflow's build, provenance, PyPI, and GitHub
-   Release jobs, then install both distributions from PyPI in clean environments.
+4. Push the tag. Check the Release workflow's build, provenance, both PyPI, and
+   GitHub Release jobs, then install both distributions from PyPI in clean environments.
 5. Start the soak window after the release candidate is published. Require seven
    consecutive healthy daily runs, one successful weekly sample, clean Windows and
    Linux installs, and no schema or provider regressions.

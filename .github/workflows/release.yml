@@ -70,16 +70,37 @@ jobs:
         with:
           name: release-${{ github.ref_name }}
           path: dist/
-      - name: Prepare PyPI distributions
+      - name: Prepare core PyPI distributions
         run: |
           mkdir pypi-dist
-          cp dist/*.whl dist/*.tar.gz pypi-dist/
+          cp dist/swe_internship_scraper-*.whl dist/swe_internship_scraper-*.tar.gz pypi-dist/
+      - uses: pypa/gh-action-pypi-publish@a892a5a61159132606e93a2fa6f4358831b04d26 # v1.14.2
+        with:
+          packages-dir: pypi-dist/
+
+  publish-icims:
+    needs: [build, provenance]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: pypi-icims
+    permissions:
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: release-${{ github.ref_name }}
+          path: dist/
+      - name: Prepare iCIMS PyPI distributions
+        run: |
+          mkdir pypi-dist
+          cp dist/swe_scraper_icims-*.whl dist/swe_scraper_icims-*.tar.gz pypi-dist/
       - uses: pypa/gh-action-pypi-publish@a892a5a61159132606e93a2fa6f4358831b04d26 # v1.14.2
         with:
           packages-dir: pypi-dist/
 
   publish-github:
-    needs: [build, provenance, publish-pypi]
+    needs: [build, provenance, publish-pypi, publish-icims]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

@@ -11,13 +11,14 @@ from pathlib import Path
 from typing import TextIO
 
 from . import __version__
+from .checkpoints import ScanCheckpointStore
 from .config import load_targets
 from .exporters import write_csv, write_json
 from .health import run_health_checks
 from .models import ScanResult
 from .notifications import JsonLinesNotifier
 from .providers.registry import DEFAULT_REGISTRY
-from .scanner import scan_targets, scan_targets_detailed
+from .scanner import ScanProgress, scan_targets, scan_targets_detailed
 from .validation import validate_file
 from .watch import load_seen, save_seen, unseen_jobs
 
@@ -106,6 +107,39 @@ def _run_scan(args: argparse.Namespace) -> ScanResult:
         "include_keywords": args.include,
         "exclude_keywords": args.exclude,
     }
+    if getattr(args, "resume", False) is True and profile != "all":
+        raise ValueError("--resume requires --target-set all")
+    if args.command == "scan" and profile == "all":
+        scan_options = {
+            key: value for key, value in options.items() if key != "max_workers"
+        }
+        checkpoint_store = ScanCheckpointStore(
+            output=args.output,
+            targets=targets,
+            scan_options=scan_options,
+            version=__version__,
+            resume=args.resume,
+        )
+        args._checkpoint_store = checkpoint_store
+        options["checkpoint_store"] = checkpoint_store
+        if not args.no_progress:
+            last_printed = float("-inf")
+
+            def report(progress: ScanProgress) -> None:
+                nonlocal last_printed
+                now = time.monotonic()
+                if now - last_printed < 10 and progress.completed != progress.total:
+                    return
+                last_printed = now
+                _console_print(
+                    f"Scan {progress.completed}/{progress.total} boards; "
+                    f"{progress.resumed} resumed; "
+                    f"{progress.fetched_records} records fetched; "
+                    f"{progress.failed} failed; {progress.elapsed_seconds:.0f}s elapsed",
+                    file=sys.stderr,
+                )
+
+            options["progress_callback"] = report
     report_path = getattr(args, "dedupe_report", None)
     if report_path is None:
         return scan_targets(targets, **options)
@@ -148,6 +182,9 @@ def _scan_exit_code(result: ScanResult, strict: bool) -> int:
 def _scan_command(args: argparse.Namespace) -> int:
     result = _run_scan(args)
     target = _write_result(result, args.output, args.format)
+    checkpoint_store = getattr(args, "_checkpoint_store", None)
+    if checkpoint_store is not None and not result.errors:
+        checkpoint_store.clear()
     _console_print(f"Wrote {len(result.jobs)} jobs to {target}")
     if result.errors:
         _console_print(
@@ -238,6 +275,14 @@ def build_parser() -> argparse.ArgumentParser:
     _add_scan_options(scan)
     scan.add_argument("--output", type=Path, default=Path("jobs.json"))
     scan.add_argument("--format", choices=("auto", "json", "csv"), default="auto")
+    scan.add_argument(
+        "--resume",
+        action="store_true",
+        help="resume a matching full-catalog scan from saved board checkpoints",
+    )
+    scan.add_argument(
+        "--no-progress", action="store_true", help="hide full-catalog progress messages"
+    )
     scan.set_defaults(handler=_scan_command)
 
     validate = commands.add_parser("validate", help="validate a JSON scan artifact")

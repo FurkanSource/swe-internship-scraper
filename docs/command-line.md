@@ -14,6 +14,13 @@ py -m swe_scraper scan --target-set all --output all-internships.csv
 
 `--quick` uses the small monitored sample. The default scans priority boards.
 `--target-set all` scans the whole bundled catalog and can take much longer.
+Full-catalog scans show periodic progress on stderr and checkpoint each completed
+board in your operating system's user cache. If interrupted, rerun the same
+command with `--resume` within 24 hours to reuse successful boards and retry
+failed ones. A fresh run without `--resume` replaces the previous checkpoint
+for that output path. Checkpoints are removed after all boards and the output
+export succeed; they remain after a partial or failed run. Use `--no-progress`
+to hide the status messages. `--resume` is available only with `--target-set all`.
 Output ending in `.csv` is a spreadsheet; output ending in `.json` contains the
 full schema, including source and merge information. Files are written to the
 current folder unless you provide another path.
@@ -26,6 +33,9 @@ py -m swe_scraper scan --providers greenhouse,oracle --output selected.csv
 ```
 
 Filters apply to job results; they do not reduce the number of boards fetched.
+For SWE and adjacent scans, SmartRecruiters and Oracle skip detail requests for
+list titles that clearly describe non-intern roles. Missing and ambiguous titles
+are still fetched. `--all-jobs` continues to fetch every posting.
 The default matches software internship titles, including SWE, backend, firmware,
 and data engineering. Title matching is a heuristic; review the actual posting.
 Use `--include-adjacent` to also consider analytics, quantitative research, and

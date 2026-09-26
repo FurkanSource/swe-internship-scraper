@@ -3,7 +3,8 @@
 The release workflow builds the scraper and experimental iCIMS plugin once, checks
 their distributions, creates an SBOM and checksums, records build provenance, and
 publishes to PyPI before creating a GitHub Release. The `pypi` and `pypi-icims`
-GitHub environments permit version tags.
+GitHub environments permit version tags. Candidate tags are marked as GitHub
+prereleases; stable version tags are regular releases.
 
 ## First release setup
 

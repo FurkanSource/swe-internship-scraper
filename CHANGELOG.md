@@ -4,6 +4,19 @@ This project follows Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- Reject incomplete, repeated, malformed, or inconsistent Workday pagination.
+- Enforce response size limits while streaming JSON and HTML, and release connections.
+- Publish core and iCIMS independently with version-checked `v*` and `icims-v*` tags.
+
+### Changed
+
+- Focus default matching on software internships; use `--include-adjacent` for
+  broader technical roles such as analytics and research.
+- Add opt-in `--strict` to return a failure status for partial scans and stop watch
+  on provider errors, after saving available results.
+
 ## [1.0.0rc2] - 2026-09-25
 
 ### Added

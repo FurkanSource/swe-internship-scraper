@@ -35,3 +35,12 @@ example = "example_provider:ExampleProvider"
 8. Add three live canaries before declaring a provider supported.
 
 HTML providers remain experimental plugins. They must stay on the configured origin and must not bypass authentication, CAPTCHA, or access controls. See the [iCIMS plugin tutorial](icims-plugin.md).
+
+### Workday pagination
+
+Workday uses the first page's total to verify completeness. Some CXS boards return
+`total: 0` on later pages; this is not an end-of-results signal. Missing records,
+repeated jobs, and changed nonzero totals fail the board instead of returning a
+partial success. By default, requests use 20 postings per page and at most 20 pages
+(400 postings). A target can set smaller `page_size` or `max_pages` limits;
+exhausting a limit before the original total is reached is an error.

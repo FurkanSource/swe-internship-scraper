@@ -28,6 +28,7 @@ def scan_targets(
     client: HttpClient | None = None,
     max_workers: int = 8,
     filter_swe: bool = True,
+    include_adjacent: bool = False,
     locations: Iterable[str] = (),
     include_keywords: Iterable[str] = (),
     exclude_keywords: Iterable[str] = (),
@@ -38,6 +39,7 @@ def scan_targets(
         client=client,
         max_workers=max_workers,
         filter_swe=filter_swe,
+        include_adjacent=include_adjacent,
         locations=locations,
         include_keywords=include_keywords,
         exclude_keywords=exclude_keywords,
@@ -50,6 +52,7 @@ def scan_targets_detailed(
     client: HttpClient | None = None,
     max_workers: int = 8,
     filter_swe: bool = True,
+    include_adjacent: bool = False,
     locations: Iterable[str] = (),
     include_keywords: Iterable[str] = (),
     exclude_keywords: Iterable[str] = (),
@@ -92,6 +95,7 @@ def scan_targets_detailed(
     if filter_swe:
         jobs = filter_jobs(
             jobs,
+            include_adjacent=include_adjacent,
             locations=locations,
             include_keywords=include_keywords,
             exclude_keywords=exclude_keywords,

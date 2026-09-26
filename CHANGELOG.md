@@ -4,6 +4,16 @@ This project follows Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.0.0rc3] - 2026-09-26
+
+### Added
+
+- Full CI and security checks on each release commit before publishing.
+- Core-only and plugin clean-install behavior checks on Windows, Linux, and macOS.
+- Exact-version PyPI installation and upgrade verification after publication.
+- Candidate-specific daily/weekly health evidence and a fail-closed stable promotion gate.
+- Release roadmap, recovery procedures, and explicit scan scope/limitations.
+
 ### Fixed
 
 - Preserve explicit location and keyword constraints with `--all-jobs`.

@@ -1,6 +1,6 @@
 """Reusable software engineering internship scraper."""
 
-__version__ = "1.0.0rc2"
+__version__ = "1.0.0rc3"
 
 from .models import Job, JobSource, MatchEvidence, ProviderFailure, ScanResult
 

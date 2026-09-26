@@ -2,7 +2,10 @@
 
 ## Python
 
-The 1.x line supports CPython 3.10 through 3.14. CI runs package tests and clean-install smoke tests on Windows and Linux.
+The 1.x line supports CPython 3.10 through 3.14. CI runs package tests on Windows
+and Linux across those versions. Clean-install behavior tests run on Windows,
+Linux, and macOS with Python 3.12. Post-publication checks install the exact PyPI
+release and test upgrading from the documented baseline release candidate.
 
 ## Public API
 

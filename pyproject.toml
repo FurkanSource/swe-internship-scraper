@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "swe-internship-scraper"
-version = "1.0.0rc2"
+version = "1.0.0rc3"
 description = "Scrape official ATS job boards for software engineering internships."
 readme = "README.md"
 requires-python = ">=3.10"

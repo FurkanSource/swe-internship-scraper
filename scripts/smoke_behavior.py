@@ -2,6 +2,8 @@
 
 import csv
 import json
+import os
+import tempfile
 from pathlib import Path
 
 from swe_scraper import cli
@@ -33,7 +35,7 @@ class FixtureProvider:
         ]
 
 
-def main():
+def _run_checks():
     DEFAULT_REGISTRY.register(FixtureProvider())
     targets = Path("targets.json")
     targets.write_text(
@@ -93,6 +95,16 @@ def main():
         == 2
     )
     print("Installed offline scan, exports, watch, and error contracts passed")
+
+
+def main():
+    original_directory = Path.cwd()
+    with tempfile.TemporaryDirectory() as directory:
+        try:
+            os.chdir(directory)
+            _run_checks()
+        finally:
+            os.chdir(original_directory)
 
 
 if __name__ == "__main__":

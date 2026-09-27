@@ -194,8 +194,9 @@ jobs:
         run: >-
           python scripts/smoke_install.py --core-version "${GITHUB_REF_NAME#v}"
           --plugin-version 0.1.0
-      - name: Test upgrade from rc2
+      - name: Test upgrade from pinned prior core
         shell: bash
-        run: >-
-          python scripts/smoke_install.py --core-version "${GITHUB_REF_NAME#v}"
-          --previous-core-version 1.0.0rc2 --plugin-version 0.1.0
+        run: |
+          previous_version="$(python -c 'import json; from pathlib import Path; print(json.loads(Path(".github/release-candidate.json").read_text(encoding="utf-8"))["previous_core_version"])')"
+          python scripts/smoke_install.py --core-version "${GITHUB_REF_NAME#v}" \
+            --previous-core-version "$previous_version" --plugin-version 0.1.0

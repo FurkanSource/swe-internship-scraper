@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
 
@@ -297,8 +298,14 @@ def deduplicate(jobs: Iterable[Job]) -> list[Job]:
 def deduplicate_with_audit(jobs: Iterable[Job]) -> DeduplicationResult:
     merged = deduplicate(jobs)
     potentials: list[PotentialDuplicate] = []
+    company_indices: dict[str, list[int]] = defaultdict(list)
+    for index, job in enumerate(merged):
+        company_indices[_company_key(job.company)].append(index)
     for index, left in enumerate(merged):
-        for right in merged[index + 1 :]:
+        for right_index in company_indices[_company_key(left.company)]:
+            if right_index <= index:
+                continue
+            right = merged[right_index]
             candidate = _potential_match(left, right)
             if candidate is not None:
                 potentials.append(candidate)

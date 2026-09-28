@@ -8,6 +8,11 @@ from collections.abc import Iterable
 from .models import Job
 
 INTERNSHIP = re.compile(r"\b(?:intern|internship|co[ -]?op)\b", re.I)
+EARLY_CAREER = re.compile(
+    r"\b(?:student|campus|university|graduate|grad|new[ -]?grad|"
+    r"early[ -]?career|apprentice|trainee|summer|spring|fall|autumn|winter|20\d{2})\b",
+    re.I,
+)
 SOFTWARE = re.compile(
     r"\b(?:software|developer|programmer|SWE|SDE|firmware|devops|"
     r"site reliability|SRE|back[ -]?end|front[ -]?end|full[ -]?stack|"
@@ -25,6 +30,13 @@ ADJACENT = re.compile(
 
 def is_swe_internship(title: str) -> bool:
     return bool(INTERNSHIP.search(title or "") and SOFTWARE.search(title or ""))
+
+
+def is_potential_internship_summary(title: object) -> bool:
+    """Keep uncertain list titles so a detail page can settle the role."""
+    if not isinstance(title, str) or not title.strip():
+        return True
+    return bool(INTERNSHIP.search(title) or EARLY_CAREER.search(title))
 
 
 def filter_jobs(

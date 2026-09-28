@@ -7,6 +7,7 @@ import re
 import urllib.parse
 from typing import Any
 
+from ..filters import is_potential_internship_summary
 from ..models import Job
 from ..normalize import iso_datetime, normalize_locations
 from ._reliability import (
@@ -68,11 +69,28 @@ class OracleProvider:
         }
 
     def fetch(self, target: Target, client: HttpClient) -> list[Job]:
+        return self._fetch(target, client, candidates_only=False)
+
+    def fetch_candidates(self, target: Target, client: HttpClient) -> list[Job]:
+        """Avoid details for clearly unrelated list titles in internship scans."""
+        return self._fetch(target, client, candidates_only=True)
+
+    def _fetch(
+        self, target: Target, client: HttpClient, *, candidates_only: bool
+    ) -> list[Job]:
         self.validate_target(target)
         origin = str(target.options["origin"]).rstrip("/")
         headers = self._headers(origin, target)
         workers = detail_workers(target)
         summaries = restart_on_total_change(lambda: self._fetch_summaries(target, client))
+        if candidates_only:
+            summaries = [
+                row
+                for row in summaries
+                if is_potential_internship_summary(
+                    row.get("Title") or row.get("RequisitionTitle")
+                )
+            ]
 
         def fetch_detail(summary: dict[str, Any]) -> Job:
             source_id = self._source_id(summary)

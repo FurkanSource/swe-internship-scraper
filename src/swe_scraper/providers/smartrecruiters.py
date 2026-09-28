@@ -7,6 +7,7 @@ import re
 import urllib.parse
 from typing import Any
 
+from ..filters import is_potential_internship_summary
 from ..models import Job
 from ..normalize import iso_datetime, normalize_locations
 from ._reliability import (
@@ -64,12 +65,23 @@ class SmartRecruitersProvider:
         detail_workers(target)
 
     def fetch(self, target: Target, client: HttpClient) -> list[Job]:
+        return self._fetch(target, client, candidates_only=False)
+
+    def fetch_candidates(self, target: Target, client: HttpClient) -> list[Job]:
+        """Avoid details for clearly unrelated list titles in internship scans."""
+        return self._fetch(target, client, candidates_only=True)
+
+    def _fetch(
+        self, target: Target, client: HttpClient, *, candidates_only: bool
+    ) -> list[Job]:
         self.validate_target(target)
         company = urllib.parse.quote(target.slug, safe="")
         endpoint = f"https://api.smartrecruiters.com/v1/companies/{company}/postings"
         workers = detail_workers(target)
         posting_ids = restart_on_total_change(
-            lambda: self._fetch_posting_ids(target, client, endpoint)
+            lambda: self._fetch_posting_ids(
+                target, client, endpoint, candidates_only=candidates_only
+            )
         )
 
         def fetch_detail(source_id: str) -> Job:
@@ -84,7 +96,12 @@ class SmartRecruitersProvider:
         return ordered_details(fetch_detail, posting_ids, workers)
 
     def _fetch_posting_ids(
-        self, target: Target, client: HttpClient, endpoint: str
+        self,
+        target: Target,
+        client: HttpClient,
+        endpoint: str,
+        *,
+        candidates_only: bool = False,
     ) -> list[str]:
         page_size = int(target.options.get("page_size", 100))
         max_pages = int(target.options.get("max_pages", 100))
@@ -134,7 +151,14 @@ class SmartRecruitersProvider:
                 raise RuntimeError(
                     f"SmartRecruiters board '{target.name}' repeated a pagination page"
                 )
-            posting_ids.extend(page_ids)
+            if candidates_only:
+                posting_ids.extend(
+                    str(row["id"]).strip()
+                    for row in rows
+                    if is_potential_internship_summary(row.get("name") or row.get("title"))
+                )
+            else:
+                posting_ids.extend(page_ids)
             seen_ids.update(page_ids)
             offset += len(rows)
             if offset > total:

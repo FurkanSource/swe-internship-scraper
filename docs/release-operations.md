@@ -4,7 +4,9 @@
 
 1. Merge reviewed changes with green CI. Update `pyproject.toml` and
    `src/swe_scraper/__init__.py` to a fresh RC version, write the changelog, and
-   set the matching tag/version in `.github/release-candidate.json`.
+   set the matching tag/version in `.github/release-candidate.json`. Pin
+   `previous_core_version` there to the most recent published core version
+   before creating the tag (for the next candidate after rc3, use `1.0.0rc3`).
 2. Verify the merged commit and create a signed immutable tag:
 
    ```sh
@@ -19,7 +21,7 @@
    Verify environment approval/protection settings on GitHub; workflow syntax
    alone does not establish who can approve a deployment.
 4. Require the entire release run to pass, including exact-version PyPI install
-   and rc2-to-candidate upgrade checks on Windows, Linux, and macOS. A failed
+   and the pinned prior-version upgrade checks on Windows, Linux, and macOS. A failed
    post-publication test does not undo an upload: the candidate stays blocked.
 5. Start both observations, then let the schedules collect subsequent evidence:
 

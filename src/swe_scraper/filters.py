@@ -14,12 +14,27 @@ EARLY_CAREER = re.compile(
     re.I,
 )
 SOFTWARE = re.compile(
-    r"\b(?:software|developer|programmer|SWE|SDE|firmware|devops|"
+    r"\b(?:software[ -]+(?:engineer(?:ing)?|develop(?:ment|er)|programmer|architect|"
+    r"intern(?:ship)?|co[ -]?op)|developer|programmer|SWE|SDE|firmware|devops|"
     r"site reliability|SRE|back[ -]?end|front[ -]?end|full[ -]?stack|"
+    r"web[ -]+(?:develop(?:ment|er)|engineer(?:ing)?)|"
     r"(?:data|machine learning|AI|cloud|platform|infrastructure|mobile|security|systems?)"
     r"[ -]+(?:engineer(?:ing)?|development|developer))\b",
     re.I,
 )
+
+_LOCATION_QUERY_ALIASES = {
+    "ny": ("ny", "nyc", "new york"),
+    "nyc": ("nyc", "new york city", "new york ny"),
+    "sf": ("sf", "san francisco"),
+}
+
+
+def _term_pattern(value: str) -> re.Pattern[str]:
+    """Treat punctuation-bearing terms as whole tokens, not substrings."""
+    return re.compile(rf"(?<![\w.+#]){re.escape(value.strip())}(?![\w.+#])", re.I)
+
+
 ADJACENT = re.compile(
     r"\b(?:data|analytics|technology|computer science|machine learning|"
     r"artificial intelligence|AI|cybersecurity|cyber security|information security|"
@@ -49,9 +64,20 @@ def filter_jobs(
     filter_swe: bool = True,
 ) -> list[Job]:
     """Filter jobs using explicit public CLI options only."""
-    wanted_locations = tuple(value.casefold() for value in locations if value)
-    required = tuple(value.casefold() for value in include_keywords if value)
-    excluded = tuple(value.casefold() for value in exclude_keywords if value)
+    wanted_locations = tuple(
+        tuple(
+            _term_pattern(alias)
+            for alias in _LOCATION_QUERY_ALIASES.get(value.strip().casefold(), (value,))
+        )
+        for value in locations
+        if value and value.strip()
+    )
+    required = tuple(
+        _term_pattern(value) for value in include_keywords if value and value.strip()
+    )
+    excluded = tuple(
+        _term_pattern(value) for value in exclude_keywords if value and value.strip()
+    )
     kept: list[Job] = []
     for job in jobs:
         searchable = " ".join(
@@ -66,12 +92,14 @@ def filter_jobs(
         if filter_swe and not is_swe_internship(job.title) and not adjacent:
             continue
         if wanted_locations and not any(
-            value in location_text for value in wanted_locations
+            pattern.search(location_text)
+            for aliases in wanted_locations
+            for pattern in aliases
         ):
             continue
-        if required and not all(value in searchable for value in required):
+        if required and not all(pattern.search(searchable) for pattern in required):
             continue
-        if excluded and any(value in searchable for value in excluded):
+        if excluded and any(pattern.search(searchable) for pattern in excluded):
             continue
         kept.append(job)
     return kept

@@ -1,0 +1,62 @@
+{
+  "development": {
+    "core": [
+      "Software Engineer Intern", "Software Engineering Intern", "Software Developer Intern",
+      "Software Development Intern", "Software Programmer Intern", "Software Intern",
+      "SWE Intern", "SDE Intern", "Backend Engineer Intern",
+      "Back End Developer Intern", "Front End Engineer Intern", "Frontend Developer Intern",
+      "Full Stack Engineer Intern", "Fullstack Developer Co-op", "Firmware Engineer Intern",
+      "Firmware Developer Intern", "DevOps Engineer Intern", "Site Reliability Engineer Intern",
+      "SRE Intern", "Data Engineer Intern", "Machine Learning Engineer Intern",
+      "AI Engineer Intern", "Cloud Engineer Intern", "Platform Engineer Intern",
+      "Infrastructure Engineer Intern", "Mobile Developer Intern", "Security Engineer Intern",
+      "Systems Engineer Intern", "Web Development Intern", "Web Developer Intern"
+    ],
+    "adjacent": [
+      "Computer Science Intern", "Data Science Intern", "Cybersecurity Analyst Intern",
+      "Information Security Intern", "Analytics Intern", "Technology Intern",
+      "Quantitative Research Intern", "Artificial Intelligence Intern",
+      "Cloud Operations Intern", "Platform Operations Intern"
+    ],
+    "reject": [
+      "Software Sales Intern", "Software Marketing Intern", "Software Recruiting Intern",
+      "Software Account Executive Intern", "Software Legal Intern",
+      "Software Solutions Consultant Intern", "Software HR Intern",
+      "Software Customer Success Intern", "Software Product Manager Intern",
+      "Software Program Manager Intern", "Software Finance Intern",
+      "Software Operations Intern", "Software Business Development Intern",
+      "Software Technical Writer Intern", "Mechanical Engineering Intern",
+      "Civil Engineering Intern", "Electrical Engineering Intern", "Sales Intern",
+      "HR Intern", "Finance Intern"
+    ]
+  },
+  "validation": {
+    "core": [
+      "Intern, Software Engineering", "Summer 2028 Software Engineer Internship",
+      "Backend Developer Intern - Marketing Automation",
+      "Software Engineer Intern, Finance Platform",
+      "Software Developer Intern (Sales Tech)",
+      "Software Engineering Co-op - Legal Systems",
+      "Full-Stack Software Engineer Internship", "Web Engineer Intern",
+      "Web Development Co-op", "Firmware Engineering Internship",
+      "Mobile Development Intern", "Data Engineering Intern", "Cloud Development Intern",
+      "Platform Development Intern", "Security Development Intern",
+      "Systems Development Intern", "Site Reliability Co-op", "AI Development Intern",
+      "Software Engineer Intern - Recruiting Systems",
+      "Frontend Engineer Intern, Sales Technology"
+    ],
+    "adjacent": [
+      "Machine Learning Research Intern", "Data Analyst Intern", "Automation Intern",
+      "Infrastructure Analyst Intern", "Computer Science Co-op"
+    ],
+    "reject": [
+      "Software Sales Operations Intern", "Software Recruiter Intern",
+      "Software Customer Support Intern", "Software Partnerships Intern",
+      "Software Brand Marketing Intern", "Software Product Marketing Intern",
+      "Software Procurement Intern", "Software Account Manager Intern",
+      "Software Events Intern", "Software Legal Affairs Intern",
+      "Mechanical Design Intern", "Hardware Engineering Intern",
+      "Product Design Intern", "Research Intern", "Software Sales Co-op"
+    ]
+  }
+}

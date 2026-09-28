@@ -24,6 +24,12 @@ to hide the status messages. `--resume` is available only with `--target-set all
 Output ending in `.csv` is a spreadsheet; output ending in `.json` contains the
 full schema, including source and merge information. Files are written to the
 current folder unless you provide another path.
+CSV prefixes cells that could be read as formulas (`=`, `+`, `-`, `@`, including
+after leading whitespace) with an apostrophe. This changes those cell values
+and reduces formula interpretation when first opened in common spreadsheets;
+it is not a guarantee after editing, saving, and reopening. For exact values
+from the scraper's normalized output model, use JSON (`--format json`). Neither
+format is a byte-for-byte copy of the ATS HTTP response.
 
 Filter results with repeatable options:
 
@@ -33,6 +39,10 @@ py -m swe_scraper scan --providers greenhouse,oracle --output selected.csv
 ```
 
 Filters apply to job results; they do not reduce the number of boards fetched.
+Location and keyword options match complete terms rather than substrings.
+`--location ny` matches `NY` and `New York`, while `--location sf` matches
+`SF` and `San Francisco`. Symbols in terms such as `C++`, `C#`, `.NET`, and
+`Node.js` are matched literally.
 For SWE and adjacent scans, SmartRecruiters and Oracle skip detail requests for
 list titles that clearly describe non-intern roles. Missing and ambiguous titles
 are still fetched. `--all-jobs` continues to fetch every posting.

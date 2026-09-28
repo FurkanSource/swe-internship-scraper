@@ -1,4 +1,4 @@
-"""CSV exporter for spreadsheets and downstream scripts."""
+"""Spreadsheet-oriented CSV export with best-effort formula prefixing."""
 
 from __future__ import annotations
 
@@ -22,6 +22,15 @@ FIELDS = (
 )
 
 
+def _spreadsheet_cell(value: object) -> object:
+    """Reduce initial formula interpretation; apostrophes alter cell contents."""
+    if isinstance(value, str):
+        content = value.lstrip(" \t\r\n")
+        if content and content[0] in "=+-@":
+            return "'" + value
+    return value
+
+
 def write_csv(result: ScanResult, path: Path | str) -> Path:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -32,6 +41,8 @@ def write_csv(result: ScanResult, path: Path | str) -> Path:
         for job in result.jobs:
             row = job.to_dict()
             row["locations"] = "; ".join(job.locations)
-            writer.writerow({field: row.get(field, "") for field in FIELDS})
+            writer.writerow(
+                {field: _spreadsheet_cell(row.get(field, "")) for field in FIELDS}
+            )
     os.replace(temporary, target)
     return target

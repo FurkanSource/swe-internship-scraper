@@ -38,7 +38,7 @@ removed for stable `1.0.0`.
 | Mode | Configured employer boards |
 | --- | ---: |
 | `--quick` | 18 monitored sample boards |
-| Default | 76 priority boards |
+| Default | 72 priority boards |
 | `--target-set all` | 1,298 boards across six providers |
 
 These are catalog counts, not guarantees that every board is available or has

@@ -7,8 +7,10 @@ import re
 import urllib.parse
 from typing import Any
 
+from ..filters import is_potential_internship_summary
 from ..models import Job
 from ..normalize import iso_datetime, normalize_locations
+from ._reliability import ordered_details
 from .base import JsonClient, Target
 
 
@@ -24,11 +26,15 @@ class GreenhouseProvider:
     def validate_target(self, target: Target) -> None:
         if not target.slug.strip():
             raise ValueError("Greenhouse target requires a board slug")
+        if not isinstance(target.options.get("listing_only", False), bool):
+            raise ValueError("Greenhouse listing_only must be a boolean")
 
     def fetch(self, target: Target, client: JsonClient) -> list[Job]:
         self.validate_target(target)
         slug = urllib.parse.quote(target.slug, safe="")
-        endpoint = f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true"
+        endpoint = f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs"
+        if not target.options.get("listing_only", False):
+            endpoint += "?content=true"
         payload = client.get_json(endpoint)
         if not isinstance(payload, dict) or not isinstance(payload.get("jobs"), list):
             raise ValueError("Greenhouse response must contain a jobs list")
@@ -36,6 +42,37 @@ class GreenhouseProvider:
         if len(jobs) != len(payload["jobs"]):
             raise ValueError("Greenhouse response contains malformed job records")
         return jobs
+
+    def fetch_candidates(self, target: Target, client: JsonClient) -> list[Job]:
+        jobs = self.fetch(target, client)
+        return [job for job in jobs if is_potential_internship_summary(job.title)]
+
+    def fetch_candidates_with_details(
+        self, target: Target, client: JsonClient
+    ) -> list[Job]:
+        return self._with_details(target, client, self.fetch_candidates(target, client))
+
+    def fetch_with_details(self, target: Target, client: JsonClient) -> list[Job]:
+        return self._with_details(target, client, self.fetch(target, client))
+
+    def _with_details(
+        self, target: Target, client: JsonClient, jobs: list[Job]
+    ) -> list[Job]:
+        if not target.options.get("listing_only", False):
+            return jobs
+        slug = urllib.parse.quote(target.slug, safe="")
+
+        def detail(job: Job) -> Job:
+            source_id = urllib.parse.quote(job.source_job_id, safe="")
+            payload = client.get_json(
+                f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs/{source_id}"
+            )
+            parsed = self.parse(target, {"jobs": [payload]})
+            if len(parsed) != 1 or parsed[0].source_job_id != job.source_job_id:
+                raise ValueError("Greenhouse detail response contains a malformed job")
+            return parsed[0]
+
+        return ordered_details(detail, jobs, 4)
 
     def parse(self, target: Target, payload: Any) -> list[Job]:
         """Normalize one recorded or live Greenhouse board response."""

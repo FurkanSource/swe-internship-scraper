@@ -42,5 +42,5 @@ boards. Use `--target-set all` for the entire catalog; that takes longer and
 contacts more public job boards. See the [command guide](command-line.md) for
 filters, custom targets, and other output formats.
 
-If you want to contribute code, follow [CONTRIBUTING.md](../CONTRIBUTING.md)
+If you want to contribute code, follow the [project guide](../PROJECT_GUIDE.md#contributing)
 after this first run.

@@ -87,10 +87,10 @@ checks, and deduplication reports.
 
 Schema v2 keeps the familiar primary job fields and adds:
 
-- `sources`: every provider, source ID, and direct application URL represented by the record;
+- `sources`: every provider, board namespace, source ID, and direct application URL represented by the record;
 - `merge_evidence`: the rule and confidence for each merged source.
 
-Exact canonical URLs and provider/source identities have confidence `1.0`. Semantic merging requires canonical company, equivalent title including season and year, and equivalent location. Uncertain pairs remain separate and can be written to the optional deduplication audit.
+Automatic merging requires an exact canonical URL or the same provider, explicit board namespace, and case-sensitive source ID (confidence `1.0`). Similar company, title, or location alone never merges separate requisitions. Similarity candidates remain separate and can be written to the optional deduplication audit. Older exports without a source namespace still support exact URL matching.
 
 Primary record selection uses completeness and stable lexical tie breakers, so thread completion order does not change output. See [the schema reference](docs/output-schema.md) and [the v2 migration guide](docs/schema-v2-migration.md).
 

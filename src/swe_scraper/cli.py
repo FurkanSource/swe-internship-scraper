@@ -58,6 +58,17 @@ def _add_scan_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--exclude", action="append", default=[], help="excluded keyword")
     parser.add_argument("--max-workers", type=int, default=8)
     parser.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="retain verified jobs from incomplete boards; exit nonzero on errors",
+    )
+    parser.add_argument(
+        "--board-timeout",
+        type=float,
+        metavar="SECONDS",
+        help="optional total time budget per board (no total limit by default)",
+    )
+    parser.add_argument(
         "--cache-ttl",
         type=int,
         default=0,
@@ -119,6 +130,8 @@ def _run_scan(args: argparse.Namespace) -> ScanResult:
     profile = "canary" if args.quick else args.target_set
     targets = load_targets(args.targets, providers, profile=profile)
     options = {
+        "allow_partial": getattr(args, "allow_partial", False),
+        "board_timeout": getattr(args, "board_timeout", None),
         "max_workers": args.max_workers,
         "filter_swe": not args.all_jobs,
         "include_adjacent": args.include_adjacent,
@@ -220,7 +233,7 @@ def _scan_command(args: argparse.Namespace) -> int:
         _console_print(
             f"Completed with {len(result.errors)} provider error(s)", file=sys.stderr
         )
-    return _scan_exit_code(result, args.strict)
+    return _scan_exit_code(result, args.strict or args.allow_partial)
 
 
 def _print_cache_stats(args: argparse.Namespace) -> None:
@@ -264,8 +277,8 @@ def _watch_command(args: argparse.Namespace) -> int:
                 JsonLinesNotifier(args.notify_jsonl).notify(new_jobs)
             if result.jobs or not result.errors:
                 save_seen(args.state, result.jobs)
-            if args.once or (args.strict and result.errors):
-                return _scan_exit_code(result, args.strict)
+            if args.once or ((args.strict or args.allow_partial) and result.errors):
+                return _scan_exit_code(result, args.strict or args.allow_partial)
             time.sleep(args.interval)
     except KeyboardInterrupt:
         return 130
@@ -367,6 +380,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         return int(args.handler(args))
+    except KeyboardInterrupt:
+        _console_print(
+            "Scan interrupted; completed-board checkpoints retained.", file=sys.stderr
+        )
+        return 130
     except (OSError, RuntimeError, ValueError) as exc:
         _console_print(f"error: {exc}", file=sys.stderr)
         parser.exit(2)

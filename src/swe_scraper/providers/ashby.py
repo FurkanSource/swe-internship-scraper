@@ -5,8 +5,15 @@ from __future__ import annotations
 import urllib.parse
 from typing import Any
 
+from ..execution import (
+    BoardDeadlineExceeded,
+    ScanCancelled,
+    check_cancelled,
+    partial_allowed,
+)
 from ..models import Job
 from ..normalize import iso_datetime, normalize_locations
+from ._reliability import parse_listing_rows
 from .base import JsonClient, Target
 
 BOARD_QUERY = """
@@ -60,12 +67,15 @@ class AshbyProvider:
             payload = client.get_json(
                 f"https://api.ashbyhq.com/posting-api/job-board/{slug}"
             )
+        except (ScanCancelled, BoardDeadlineExceeded):
+            raise
         except Exception as public_error:
             nodes = []
             cursor = None
             seen_cursors: set[str] = set()
             max_pages = min(max(int(target.options.get("max_pages", 5)), 1), 20)
             for _ in range(max_pages):
+                check_cancelled()
                 graph = client.post_json(
                     "https://jobs.ashbyhq.com/api/non-user-graphql",
                     {
@@ -148,6 +158,8 @@ class AshbyProvider:
             rows = rows.get("nodes")
         if not isinstance(rows, list):
             raise ValueError("Ashby response must contain a postings list")
+        if partial_allowed():
+            return parse_listing_rows(rows, lambda row: self.parse(target, {"jobs": [row]}))
         jobs = self.parse(target, {"jobs": rows})
         if len(jobs) != len(rows):
             raise ValueError("Ashby response contains malformed job records")
@@ -198,6 +210,7 @@ class AshbyProvider:
                     ),
                     remote=remote,
                     metadata={
+                        "source_namespace": f"https://api.ashbyhq.com/posting-api/job-board/{target.slug}",
                         "board": target.slug,
                         "source_updated_at_raw": str(row.get("publishedAt") or ""),
                     },

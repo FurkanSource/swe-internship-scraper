@@ -8,6 +8,7 @@ import urllib.parse
 from dataclasses import replace
 from typing import Any
 
+from ..execution import check_cancelled
 from ..filters import is_potential_internship_summary
 from ..models import Job
 from ..normalize import iso_datetime, normalize_locations
@@ -15,8 +16,8 @@ from ._reliability import (
     PaginationTotalChanged,
     detail_json,
     detail_workers,
+    listing_snapshot,
     ordered_details,
-    restart_on_total_change,
 )
 from .base import HttpClient, Target
 
@@ -84,7 +85,9 @@ class OracleProvider:
         origin = str(target.options["origin"]).rstrip("/")
         headers = self._headers(origin, target)
         workers = detail_workers(target)
-        summaries = restart_on_total_change(lambda: self._fetch_summaries(target, client))
+        summaries, listing_issues = listing_snapshot(
+            lambda retained: self._fetch_summaries(target, client, retained)
+        )
         if candidates_only:
             summaries = [
                 row
@@ -136,19 +139,27 @@ class OracleProvider:
             job = self.parse_detail(target, summary, detail_rows[0])
             return replace(job, metadata={**job.metadata, **provenance})
 
-        return ordered_details(fetch_detail, summaries, workers)
+        return ordered_details(
+            fetch_detail, summaries, workers, listing_issues=listing_issues
+        )
 
-    def _fetch_summaries(self, target: Target, client: HttpClient) -> list[dict[str, Any]]:
+    def _fetch_summaries(
+        self,
+        target: Target,
+        client: HttpClient,
+        retained: list[dict[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
         origin = str(target.options["origin"]).rstrip("/")
         page_size = int(target.options.get("page_size", 25))
         max_pages = int(target.options.get("max_pages", 200))
         headers = self._headers(origin, target)
-        summaries: list[dict[str, Any]] = []
+        summaries: list[dict[str, Any]] = [] if retained is None else retained
         seen: set[str] = set()
         expected_total: int | None = None
         offset = 0
         complete = False
         for _page in range(max_pages):
+            check_cancelled()
             finder = f"findReqs;siteNumber={target.slug},limit={page_size},offset={offset}"
             endpoint = self._url(
                 origin,
@@ -305,6 +316,7 @@ class OracleProvider:
             description=description,
             remote=any("remote" in value.casefold() for value in normalized),
             metadata={
+                "source_namespace": f"{origin}/{target.slug}",
                 "origin": origin,
                 "site_number": target.slug,
                 "posting_end_date": str(

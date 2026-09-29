@@ -24,6 +24,7 @@ class ProviderContractFixtureTests(unittest.TestCase):
             self._fixture("greenhouse"),
         )
         self.assertEqual(jobs[0].source_job_id, "1001")
+        self.assertIn("example", jobs[0].sources[0].namespace)
 
     def test_recorded_lever_contract(self):
         jobs = LeverProvider().parse(
@@ -31,6 +32,7 @@ class ProviderContractFixtureTests(unittest.TestCase):
             self._fixture("lever"),
         )
         self.assertEqual(jobs[0].source_job_id, "lever-1001")
+        self.assertIn("example", jobs[0].sources[0].namespace)
 
     def test_recorded_ashby_contract(self):
         jobs = AshbyProvider().parse(
@@ -38,6 +40,7 @@ class ProviderContractFixtureTests(unittest.TestCase):
             self._fixture("ashby"),
         )
         self.assertEqual(jobs[0].source_job_id, "ashby-1001")
+        self.assertIn("example", jobs[0].sources[0].namespace)
 
     def test_recorded_workday_page_contract(self):
         target = Target(
@@ -52,6 +55,8 @@ class ProviderContractFixtureTests(unittest.TestCase):
         )
         jobs = WorkdayProvider().parse_page(target, self._fixture("workday"))
         self.assertEqual(jobs[0].source_job_id, "R-1001")
+        self.assertIn("example.wd1.myworkdayjobs.com", jobs[0].sources[0].namespace)
+        self.assertIn("careers", jobs[0].sources[0].namespace)
 
     def test_recorded_smartrecruiters_detail_contract(self):
         job = SmartRecruitersProvider().parse_detail(
@@ -60,6 +65,7 @@ class ProviderContractFixtureTests(unittest.TestCase):
         )
         self.assertIsNotNone(job)
         self.assertEqual(job.source_job_id, "sr-1001")
+        self.assertIn("Example", job.sources[0].namespace)
 
     def test_recorded_oracle_detail_contract(self):
         target = Target(
@@ -74,6 +80,8 @@ class ProviderContractFixtureTests(unittest.TestCase):
             self._fixture("oracle-detail")["items"][0],
         )
         self.assertEqual(job.source_job_id, "1001")
+        self.assertIn("example.fa.us2.oraclecloud.com", job.sources[0].namespace)
+        self.assertIn("CX_1", job.sources[0].namespace)
         self.assertIn("/sites/CX_1/job/1001", job.application_url)
 
 

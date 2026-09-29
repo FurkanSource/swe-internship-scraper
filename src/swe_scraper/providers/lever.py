@@ -5,8 +5,10 @@ from __future__ import annotations
 import urllib.parse
 from typing import Any
 
+from ..execution import partial_allowed
 from ..models import Job
 from ..normalize import iso_datetime, normalize_locations
+from ._reliability import parse_listing_rows
 from .base import JsonClient, Target
 
 
@@ -24,6 +26,8 @@ class LeverProvider:
         payload = client.get_json(f"https://api.lever.co/v0/postings/{slug}?mode=json")
         if not isinstance(payload, list):
             raise ValueError("Lever response must be a postings list")
+        if partial_allowed():
+            return parse_listing_rows(payload, lambda row: self.parse(target, [row]))
         jobs = self.parse(target, payload)
         if len(jobs) != len(payload):
             raise ValueError("Lever response contains malformed job records")
@@ -66,7 +70,10 @@ class LeverProvider:
                         part for part in description_parts if part
                     ).strip(),
                     remote=any("remote" in value.casefold() for value in location_values),
-                    metadata={"board": target.slug},
+                    metadata={
+                        "board": target.slug,
+                        "source_namespace": f"https://api.lever.co/v0/postings/{target.slug}",
+                    },
                 )
             )
         return jobs

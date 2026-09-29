@@ -24,6 +24,7 @@ def make_job(**overrides):
         "provider": "greenhouse",
         "source_job_id": "1",
         "locations": ("New York, NY",),
+        "metadata": {"source_namespace": "https://job-boards.greenhouse.io/acme"},
     }
     values.update(overrides)
     return Job(**values)
@@ -71,7 +72,7 @@ class HardeningTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "already registered"):
             registry.register(ExampleProvider())
 
-    def test_semantic_dedupe_merges_only_high_confidence_equivalents(self):
+    def test_semantic_similarity_keeps_distinct_requisitions(self):
         equivalent = make_job(
             id="lever:acme:abc",
             company="Acme",
@@ -82,12 +83,8 @@ class HardeningTests(unittest.TestCase):
             locations=("New York, NY", "Remote"),
         )
         result = deduplicate([make_job(), equivalent])
-        self.assertEqual(len(result), 1)
-        evidence = result[0].metadata["deduplication"]
-        self.assertEqual(evidence["reason"], "company_title_location")
-        self.assertGreaterEqual(evidence["confidence"], 0.9)
-        self.assertEqual(set(evidence["providers"]), {"greenhouse", "lever"})
-        self.assertEqual(evidence["matches"][0]["source_job_id"], "abc")
+        self.assertEqual(len(result), 2)
+        self.assertTrue(all(not row.merge_evidence for row in result))
 
         different_market = make_job(
             id="lever:acme:west",

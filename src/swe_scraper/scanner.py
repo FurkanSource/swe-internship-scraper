@@ -3,18 +3,21 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
-from dataclasses import dataclass
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
+from dataclasses import dataclass, replace
+from threading import Event
 from time import monotonic
 from typing import cast
 
 from .checkpoints import ScanCheckpointStore
 from .dedupe import PotentialDuplicate, deduplicate, deduplicate_with_audit
+from .execution import FetchControl, ScanCancelled, fetch_context, validate_timeout
 from .filters import filter_jobs
 from .models import Job, ProviderFailure, ScanResult
 from .providers import Target, get_provider
 from .providers.base import HttpClient, Provider
 from .providers.http import RequestsJsonClient
+from .providers.results import PartialFetchError
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +50,8 @@ def scan_targets(
     exclude_keywords: Iterable[str] = (),
     progress_callback: Callable[[ScanProgress], None] | None = None,
     checkpoint_store: ScanCheckpointStore | None = None,
+    allow_partial: bool = False,
+    board_timeout: float | None = None,
 ) -> ScanResult:
     """Fetch targets concurrently while preserving board-level failures."""
     return scan_targets_detailed(
@@ -61,6 +66,8 @@ def scan_targets(
         progress_callback=progress_callback,
         checkpoint_store=checkpoint_store,
         audit=False,
+        allow_partial=allow_partial,
+        board_timeout=board_timeout,
     ).result
 
 
@@ -77,8 +84,11 @@ def scan_targets_detailed(
     progress_callback: Callable[[ScanProgress], None] | None = None,
     checkpoint_store: ScanCheckpointStore | None = None,
     audit: bool = True,
+    allow_partial: bool = False,
+    board_timeout: float | None = None,
 ) -> ScanDetails:
     """Fetch targets and retain uncertain duplicate pairs for optional auditing."""
+    validate_timeout(board_timeout)
     target_list = list(targets)
     include_terms = tuple(include_keywords)
     exclude_terms = tuple(exclude_keywords)
@@ -146,35 +156,93 @@ def scan_targets_detailed(
     report_progress()
 
     workers = min(max(1, int(max_workers)), max(1, len(target_list)), 32)
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {
-            pool.submit(fetch_one, target): (index, target)
-            for index, target in pending_targets
-        }
-        waiting = set(futures)
-        while waiting:
-            done, waiting = wait(waiting, timeout=10, return_when=FIRST_COMPLETED)
-            for future in done:
-                index, target = futures[future]
-                try:
-                    fetched = future.result()
-                except Exception as exc:
-                    errors.append(
-                        ProviderFailure(
-                            provider=target.provider,
-                            company=target.name,
-                            slug=target.slug,
-                            error=f"{type(exc).__name__}: {exc}",
-                        )
-                    )
-                else:
-                    if checkpoint_store:
-                        checkpoint_store.save(index, target, fetched)
-                    jobs.extend(fetched)
-                completed += 1
+    cancelled = Event()
+
+    def controlled_fetch(target: Target) -> list[Job]:
+        deadline = None if board_timeout is None else monotonic() + board_timeout
+        control = FetchControl(cancelled, deadline, allow_partial)
+        with fetch_context(control):
+            control.check()
+            result = fetch_one(target)
+            control.check()
+            return result
+
+    pool = ThreadPoolExecutor(max_workers=workers)
+    futures: dict[Future[list[Job]], tuple[int, Target]] = {}
+    remaining = iter(pending_targets)
+
+    def replenish() -> None:
+        while len(futures) < workers:
+            item = next(remaining, None)
+            if item is None:
+                break
+            futures[pool.submit(controlled_fetch, item[1])] = item
+
+    def consume(future: Future[list[Job]]) -> None:
+        nonlocal completed
+        index, target = futures.pop(future)
+        try:
+            fetched = future.result()
+        except PartialFetchError as exc:
+            partial_jobs = exc.result.jobs if allow_partial else ()
+            jobs.extend(
+                replace(job, metadata={**job.metadata, "board_complete": False})
+                for job in partial_jobs
+            )
+            errors.append(
+                ProviderFailure(
+                    target.provider,
+                    target.name,
+                    target.slug,
+                    str(exc),
+                    partial=bool(partial_jobs),
+                    details=tuple(issue.to_dict() for issue in exc.result.issues),
+                )
+            )
+        except Exception as exc:
+            errors.append(
+                ProviderFailure(
+                    target.provider,
+                    target.name,
+                    target.slug,
+                    f"{type(exc).__name__}: {exc}",
+                )
+            )
+        else:
+            if checkpoint_store:
+                checkpoint_store.save(index, target, fetched)
+            jobs.extend(fetched)
+        completed += 1
+
+    try:
+        replenish()
+        while futures:
+            done, _ = wait(futures, timeout=10, return_when=FIRST_COMPLETED)
+            for future in sorted(done, key=lambda value: futures[value][0]):
+                consume(future)
                 report_progress()
             if not done:
                 report_progress()
+            replenish()
+    except BaseException:
+        cancelled.set()
+        for future in futures:
+            future.cancel()
+        # Cooperative providers leave after their active request. Preserve any
+        # complete boards that finish while stopping, without reentering callbacks.
+        pool.shutdown(wait=True, cancel_futures=True)
+        for future in list(futures):
+            if future.cancelled():
+                continue
+            try:
+                if not isinstance(future.exception(), ScanCancelled):
+                    consume(future)
+            except Exception:
+                # Cleanup must not mask the original interruption/export error.
+                pass
+        raise
+    else:
+        pool.shutdown(wait=True)
 
     jobs = filter_jobs(
         jobs,

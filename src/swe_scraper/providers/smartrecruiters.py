@@ -8,6 +8,7 @@ import urllib.parse
 from dataclasses import replace
 from typing import Any
 
+from ..execution import check_cancelled
 from ..filters import is_potential_internship_summary
 from ..models import Job
 from ..normalize import iso_datetime, normalize_locations
@@ -15,8 +16,8 @@ from ._reliability import (
     PaginationTotalChanged,
     detail_json,
     detail_workers,
+    listing_snapshot,
     ordered_details,
-    restart_on_total_change,
 )
 from .base import HttpClient, Target
 
@@ -80,9 +81,9 @@ class SmartRecruitersProvider:
         company = urllib.parse.quote(target.slug, safe="")
         endpoint = f"https://api.smartrecruiters.com/v1/companies/{company}/postings"
         workers = detail_workers(target)
-        posting_ids = restart_on_total_change(
-            lambda: self._fetch_posting_ids(
-                target, client, endpoint, candidates_only=candidates_only
+        posting_ids, listing_issues = listing_snapshot(
+            lambda retained: self._fetch_posting_ids(
+                target, client, endpoint, candidates_only=candidates_only, retained=retained
             )
         )
 
@@ -101,7 +102,9 @@ class SmartRecruitersProvider:
                 )
             return replace(parsed, metadata={**parsed.metadata, **provenance})
 
-        return ordered_details(fetch_detail, posting_ids, workers)
+        return ordered_details(
+            fetch_detail, posting_ids, workers, listing_issues=listing_issues
+        )
 
     def _fetch_posting_ids(
         self,
@@ -110,15 +113,17 @@ class SmartRecruitersProvider:
         endpoint: str,
         *,
         candidates_only: bool = False,
+        retained: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
         page_size = int(target.options.get("page_size", 100))
         max_pages = int(target.options.get("max_pages", 100))
-        posting_ids: list[dict[str, Any]] = []
+        posting_ids: list[dict[str, Any]] = [] if retained is None else retained
         seen_ids: set[str] = set()
         expected_total: int | None = None
         offset = 0
         complete = False
         for _page in range(max_pages):
+            check_cancelled()
             payload = client.get_json(
                 endpoint,
                 params={
@@ -220,6 +225,7 @@ class SmartRecruitersProvider:
             remote=location_type == "remote"
             or any("remote" in value.casefold() for value in locations),
             metadata={
+                "source_namespace": f"https://api.smartrecruiters.com/v1/companies/{target.slug}",
                 "company_identifier": target.slug,
                 "reference_number": str(payload.get("refNumber") or ""),
                 "compensation": payload.get("compensation"),

@@ -4,6 +4,31 @@ This project follows Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- Scope source identities to their board/tenant, preserving unrelated requisitions
+  that happen to share a raw provider ID. Older schema v2 exports remain readable.
+- Require exact identity for automatic deduplication; report title/location
+  similarity only in the optional audit. Rank original records deterministically.
+- Cancel queued board/detail work on interruption and preserve completed-board
+  checkpoints. Retry delays and page/detail loops honor cooperative cancellation.
+
+### Added
+
+- Optional `--allow-partial` recovery of verified rows/details from damaged boards,
+  preserving explicit errors and nonzero exit status. Incomplete boards remain
+  eligible for retry; health and default scans retain strict completeness checks.
+- Optional `--board-timeout SECONDS` cooperative per-board deadlines.
+- Broader synthetic identity regression cases. Their pass rate is not a measurement
+  of real-world duplicate recall or false-merge frequency.
+
+### Compatibility
+
+- Workday `id` now includes origin, tenant, and site; consumers should migrate by
+  canonical application URL instead of assuming the old ID format remains stable.
+- Start a fresh scan after upgrading; a previous semantic merge cannot be undone
+  reliably from an already merged export.
+
 ## [1.0.0rc4] - 2026-09-29
 
 ### Changed

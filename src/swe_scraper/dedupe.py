@@ -1,7 +1,8 @@
-"""Deterministic exact and conservative semantic job deduplication."""
+"""Deterministic exact identity grouping with similarity available for audit only."""
 
 from __future__ import annotations
 
+import json
 import re
 from collections import defaultdict
 from collections.abc import Iterable
@@ -39,6 +40,10 @@ _LOCATION_ALIASES = {
     "sf": "san francisco ca",
     "washington d c": "washington dc",
 }
+_COUNTRY_PATTERNS = {
+    "us": re.compile(r"\b(?:us|usa|u s(?: a)?|united states(?: of america)?)\b"),
+    "gb": re.compile(r"\b(?:uk|u k|gb|g b|great britain|united kingdom)\b"),
+}
 
 
 def _words(value: str) -> list[str]:
@@ -74,10 +79,24 @@ def _location_key(value: str) -> str:
     return _LOCATION_ALIASES.get(key, key)
 
 
+def _country_keys(job: Job) -> set[str]:
+    return {
+        country
+        for location in job.locations
+        for country, pattern in _COUNTRY_PATTERNS.items()
+        if pattern.search(_location_key(location))
+    }
+
+
 def _location_keys(job: Job) -> set[str]:
     keys = {_location_key(location) for location in job.locations if location}
-    if job.remote or any("remote" in key for key in keys):
-        keys.add("remote")
+    if job.remote or any("remote" in key.split() for key in keys):
+        countries = _country_keys(job)
+        if countries:
+            keys.discard("remote")
+            keys.update(f"remote:{country}" for country in countries)
+        else:
+            keys.add("remote")
     return keys
 
 
@@ -85,19 +104,33 @@ def identity_key(job: Job) -> tuple[str, str]:
     canonical = canonical_url(job.application_url)
     if canonical:
         return "url", canonical
-    return job.provider.casefold(), job.source_job_id.casefold()
+    # Invalid URLs must not fall back to a provider-wide, unscoped source ID.
+    scoped = sorted(key for key in _exact_keys(job) if key[0] == "source")
+    if scoped:
+        return "source", json.dumps(scoped[0][1:], separators=(",", ":"))
+    return "record", json.dumps(
+        (job.provider, job.id, job.application_url), separators=(",", ":")
+    )
 
 
 def _exact_keys(job: Job) -> set[tuple[str, ...]]:
-    sources = (
-        *job.sources,
-        JobSource(job.provider, job.source_job_id, job.application_url),
-    )
     keys: set[tuple[str, ...]] = set()
-    for source in sources:
+    if url := canonical_url(job.application_url):
+        keys.add(("url", url))
+    # Existing provenance is authoritative. Never infer its namespace from a
+    # primary record's metadata, employer name, or URL.
+    for source in job.sources:
         if url := canonical_url(source.application_url):
             keys.add(("url", url))
-        keys.add(("source", source.provider.casefold(), source.source_job_id.casefold()))
+        if source.namespace.strip():
+            keys.add(
+                (
+                    "source",
+                    source.provider.casefold(),
+                    source.namespace,
+                    source.source_job_id,
+                )
+            )
     return keys
 
 
@@ -112,23 +145,15 @@ def _exact_match(existing: Job, incoming: Job) -> DuplicateMatch | None:
 
 def duplicate_match(existing: Job, incoming: Job) -> DuplicateMatch | None:
     """Return evidence only when two records are safe to merge automatically."""
-    if exact := _exact_match(existing, incoming):
-        return exact
-    if _company_key(existing.company) != _company_key(incoming.company):
-        return None
-    if _title_key(existing.title) != _title_key(incoming.title):
-        return None
-    existing_locations = _location_keys(existing)
-    incoming_locations = _location_keys(incoming)
-    if not existing_locations or not incoming_locations:
-        return None
-    if existing_locations.isdisjoint(incoming_locations):
-        return None
-    return DuplicateMatch("company_title_location", 0.93)
+    return _exact_match(existing, incoming)
 
 
 def _potential_match(left: Job, right: Job) -> PotentialDuplicate | None:
-    if _company_key(left.company) != _company_key(right.company):
+    company = _company_key(left.company)
+    if not company or company != _company_key(right.company):
+        return None
+    left_countries, right_countries = _country_keys(left), _country_keys(right)
+    if left_countries and right_countries and left_countries.isdisjoint(right_countries):
         return None
     left_title = set(_title_words(left.title))
     right_title = set(_title_words(right.title))
@@ -152,17 +177,21 @@ def _job_sort_key(job: Job) -> tuple[object, ...]:
         _title_key(job.title),
         tuple(sorted(_location_keys(job))),
         job.provider.casefold(),
-        job.source_job_id.casefold(),
+        job.source_job_id,
         canonical_url(job.application_url),
         job.id,
+        json.dumps(job.to_dict(), sort_keys=True, default=str),
     )
 
 
-def _source_key(source: JobSource) -> tuple[str, str, str]:
+def _source_key(source: JobSource) -> tuple[str, ...]:
     return (
         source.provider.casefold(),
-        source.source_job_id.casefold(),
+        source.namespace,
+        source.source_job_id,
         canonical_url(source.application_url),
+        source.provider,
+        source.application_url,
     )
 
 
@@ -173,16 +202,26 @@ def _primary_key(job: Job) -> tuple[object, ...]:
         bool(job.posted_at),
         len(job.locations),
         job.provider.casefold(),
-        job.source_job_id.casefold(),
+        job.source_job_id,
         canonical_url(job.application_url),
+        _job_sort_key(job),
     )
 
 
-def merge_jobs(existing: Job, incoming: Job, match: DuplicateMatch | None = None) -> Job:
-    primary = max((existing, incoming), key=_primary_key)
+def merge_jobs(
+    existing: Job,
+    incoming: Job,
+    match: DuplicateMatch | None = None,
+    *,
+    primary: Job | None = None,
+) -> Job:
+    if primary is None:
+        primary = max((existing, incoming), key=_primary_key)
     locations = normalize_locations((*existing.locations, *incoming.locations))
     metadata = dict(existing.metadata)
     metadata.update(incoming.metadata)
+    metadata.pop("source_namespace", None)
+    metadata.update(primary.metadata)
     sources = tuple(
         sorted(
             {source for value in (existing, incoming) for source in value.sources},
@@ -219,6 +258,7 @@ def merge_jobs(existing: Job, incoming: Job, match: DuplicateMatch | None = None
                 {
                     "provider": value.source.provider,
                     "source_job_id": value.source.source_job_id,
+                    "namespace": value.source.namespace,
                     "reason": value.reason,
                     "confidence": value.confidence,
                 }
@@ -245,54 +285,31 @@ def merge_jobs(existing: Job, incoming: Job, match: DuplicateMatch | None = None
 def _exact_components(jobs: Iterable[Job]) -> list[Job]:
     """Union every existing component reached by a record's exact identities."""
     groups: dict[int, Job] = {}
+    primaries: dict[int, Job] = {}
     owners: dict[tuple[str, ...], int] = {}
     for index, job in enumerate(sorted(jobs, key=_job_sort_key)):
         matches = sorted({owners[key] for key in _exact_keys(job) if key in owners})
         root = matches[0] if matches else index
+        primary = job
         if matches:
             first = groups[root]
-            job = merge_jobs(first, job, _exact_match(first, job))
+            primary = max((primaries[root], primary), key=_primary_key)
+            job = merge_jobs(first, job, _exact_match(first, job), primary=primary)
             for other in matches[1:]:
                 member = groups.pop(other)
-                job = merge_jobs(job, member, _exact_match(job, member))
+                primary = max((primary, primaries.pop(other)), key=_primary_key)
+                job = merge_jobs(job, member, _exact_match(job, member), primary=primary)
         groups[root] = job
+        # Rank original records, not the increasingly enriched group aggregate.
+        primaries[root] = primary
         for key in _exact_keys(job):
             owners[key] = root
     return sorted(groups.values(), key=_job_sort_key)
 
 
 def deduplicate(jobs: Iterable[Job]) -> list[Job]:
-    merged: list[Job] = []
-    common_locations: list[set[str]] = []
-    semantic_index: dict[tuple[str, str, str], list[int]] = {}
-    for job in _exact_components(jobs):
-        company, title = _company_key(job.company), _title_key(job.title)
-        locations = _location_keys(job)
-        candidates = {
-            index
-            for location in locations
-            for index in semantic_index.get((company, title, location), [])
-        }
-        match_index = next(
-            (index for index in sorted(candidates) if common_locations[index] & locations),
-            None,
-        )
-        if match_index is None:
-            match_index = len(merged)
-            merged.append(job)
-            common_locations.append(locations)
-            for location in locations:
-                semantic_index.setdefault((company, title, location), []).append(
-                    match_index
-                )
-        else:
-            merged[match_index] = merge_jobs(
-                merged[match_index], job, DuplicateMatch("company_title_location", 0.93)
-            )
-            # A semantic group must retain a location shared by every component.
-            # A multi-city record cannot bridge otherwise disjoint postings.
-            common_locations[match_index] &= locations
-    return sorted(merged, key=_job_sort_key)
+    """Merge only connected canonical URL or explicitly scoped source identities."""
+    return _exact_components(jobs)
 
 
 def deduplicate_with_audit(jobs: Iterable[Job]) -> DeduplicationResult:

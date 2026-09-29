@@ -12,11 +12,12 @@ SCHEMA_VERSION = 2
 
 @dataclass(frozen=True, slots=True)
 class JobSource:
-    """Stable identity and direct URL for one source record."""
+    """Source record; an empty namespace supports URL identity only."""
 
     provider: str
     source_job_id: str
     application_url: str
+    namespace: str = ""
 
     def __post_init__(self) -> None:
         if not self.provider.strip() or not self.source_job_id.strip():
@@ -31,8 +32,9 @@ class JobSource:
     def from_mapping(cls, raw: Mapping[str, Any]) -> JobSource:
         return cls(
             provider=str(raw.get("provider") or "").strip(),
-            source_job_id=str(raw.get("source_job_id") or "").strip(),
+            source_job_id=str(raw.get("source_job_id") or ""),
             application_url=str(raw.get("application_url") or "").strip(),
+            namespace=str(raw.get("namespace") or ""),
         )
 
 
@@ -65,6 +67,7 @@ class MatchEvidence:
                 "provider": raw.get("provider"),
                 "source_job_id": raw.get("source_job_id"),
                 "application_url": raw.get("application_url"),
+                "namespace": raw.get("namespace"),
             }
         return cls(
             reason=str(raw.get("reason") or "").strip(),
@@ -114,6 +117,7 @@ class Job:
                         provider=self.provider,
                         source_job_id=self.source_job_id,
                         application_url=self.application_url,
+                        namespace=str(self.metadata.get("source_namespace") or ""),
                     ),
                 ),
             )
@@ -149,7 +153,7 @@ class Job:
             title=str(raw.get("title") or raw.get("role") or "").strip(),
             application_url=str(raw.get("application_url") or raw.get("url") or "").strip(),
             provider=str(raw.get("provider") or raw.get("source") or "unknown").strip(),
-            source_job_id=str(raw.get("source_job_id") or raw.get("id") or "").strip(),
+            source_job_id=str(raw.get("source_job_id") or raw.get("id") or ""),
             locations=tuple(
                 str(value).strip() for value in locations if str(value).strip()
             ),
@@ -168,9 +172,21 @@ class ProviderFailure:
     company: str
     slug: str
     error: str
+    partial: bool = False
+    details: tuple[Mapping[str, Any], ...] = ()
 
-    def to_dict(self) -> dict[str, str]:
-        return asdict(self)
+    def to_dict(self) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            "provider": self.provider,
+            "company": self.company,
+            "slug": self.slug,
+            "error": self.error,
+        }
+        if self.partial:
+            data["partial"] = True
+        if self.details:
+            data["details"] = [dict(detail) for detail in self.details]
+        return data
 
 
 @dataclass(frozen=True, slots=True)

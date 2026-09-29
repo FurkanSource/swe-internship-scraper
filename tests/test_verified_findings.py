@@ -124,18 +124,21 @@ class ExactComponentTests(unittest.TestCase):
                 "a",
                 locations=("Austin",),
                 source_job_id="alpha",
+                metadata={"source_namespace": "example-board"},
                 application_url="https://example.test/1",
             ),
             job(
                 "b",
                 locations=("Boston",),
                 source_job_id="beta",
+                metadata={"source_namespace": "example-board"},
                 application_url="https://example.test/2",
             ),
             job(
                 "c",
                 locations=("Chicago",),
                 source_job_id="beta",
+                metadata={"source_namespace": "example-board"},
                 application_url="https://example.test/1",
             ),
         ]
@@ -157,7 +160,7 @@ class ExactComponentTests(unittest.TestCase):
             title="A Intern",
             sources=(
                 JobSource("example", "first", "https://example.test/first"),
-                JobSource("feed", "legacy", "https://example.test/legacy"),
+                JobSource("feed", "legacy", "https://example.test/legacy", "feed-board"),
             ),
         )
         second = job(
@@ -165,7 +168,7 @@ class ExactComponentTests(unittest.TestCase):
             title="B Intern",
             sources=(
                 JobSource("example", "second", "https://example.test/second"),
-                JobSource("feed", "legacy", "https://example.test/moved"),
+                JobSource("feed", "legacy", "https://example.test/moved", "feed-board"),
             ),
         )
         self.assertEqual(len(deduplicate([first, second])), 1)
@@ -177,9 +180,9 @@ class ExactComponentTests(unittest.TestCase):
             job("c", locations=("Boston",)),
         ]
         for order in itertools.permutations(jobs):
-            self.assertEqual(len(deduplicate(order)), 2)
+            self.assertEqual(len(deduplicate(order)), 3)
 
-    def test_intern_alias_still_matches_but_full_time_does_not(self):
+    def test_intern_alias_does_not_establish_identity(self):
         self.assertEqual(
             len(
                 deduplicate(
@@ -189,7 +192,7 @@ class ExactComponentTests(unittest.TestCase):
                     ]
                 )
             ),
-            1,
+            2,
         )
         self.assertEqual(
             len(

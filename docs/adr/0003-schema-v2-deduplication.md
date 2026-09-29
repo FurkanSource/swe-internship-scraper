@@ -5,13 +5,26 @@
 
 ## Decision
 
-Schema v2 makes all source identities and merge evidence first-class. Deduplication sorts inputs, uses exact identities before semantic rules, preserves season and year, and selects a primary record with stable completeness and lexical keys.
+Schema v2 makes source identities and merge evidence first-class. The September
+2026 audit supersedes automatic semantic merging: company, title and location
+similarity alone does not establish that two postings share a requisition.
 
-Exact URL and provider/source identity links form connected groups, including
-identities already present in `sources`. Semantic merges remain conservative:
-the group must retain a common normalized location. A multi-location posting
-cannot bridge otherwise disjoint locations solely through semantic similarity.
+Canonical exact URLs and `(provider, namespace, source_job_id)` links form
+connected groups, including identities already present in `sources`.
+`namespace` is an optional additive field describing the provider's tenant/board
+scope. Raw source IDs are case sensitive. Readers accept older v1/v2 records;
+an unknown namespace permits URL-based merging only. Providers declare namespaces
+explicitly rather than inferring them from company names.
+
+Similarity remains available through the optional audit, preserving separate
+requisitions and explicit remote country restrictions. Primary selection ranks
+original records by completeness and stable lexical tie breakers, independent of
+input or worker completion order.
 
 ## Consequences
 
-Output no longer depends on worker completion order. Exact matches have confidence `1.0`; conservative semantic matches have confidence `0.93`. Uncertain pairs remain separate and may be exported for review. Readers continue to accept v1.
+Automatic matches have confidence `1.0`; similarity scores are review hints,
+not calibrated probabilities. The 350-pair synthetic identity regression suite
+checks 14 pattern families. Its pass rate does not establish real-world duplicate
+recall or false-merge prevalence. Old exports with semantic merges cannot be
+reliably separated from their primary fields alone; rerun the scan for fresh rows.

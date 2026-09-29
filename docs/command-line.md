@@ -21,6 +21,34 @@ failed ones. A fresh run without `--resume` replaces the previous checkpoint
 for that output path. Checkpoints are removed after all boards and the output
 export succeed; they remain after a partial or failed run. Use `--no-progress`
 to hide the status messages. `--resume` is available only with `--target-set all`.
+Ctrl+C stops new boards and new requests between active operations, then retains
+completed-board checkpoints and exits with code 130. Active socket operations
+may take their configured timeout to finish; custom plugins must cooperate with
+cancellation to stop promptly.
+
+Use `--board-timeout SECONDS` for an optional total budget per board. Built-in
+HTTP calls and retry/rate-limit waits observe this budget; it is not a hard
+process kill and cannot forcibly interrupt arbitrary plugin code.
+
+By default, a failed board contributes no jobs. `--allow-partial` instead retains
+verified records with explicit failure metadata and a nonzero exit status. For
+Workday listing errors it keeps the validated prefix (including valid rows from
+a malformed page) and stops at that page. Oracle and SmartRecruiters can fetch
+details for the final listing attempt's verified prefix; individual failed details
+are isolated. Single-response Greenhouse, Lever and Ashby lists isolate malformed
+rows. Unsupported plugins keep their strict behavior. Incomplete boards are never
+saved as successful checkpoints, so resume retries them. Health and release gates
+still require complete boards.
+
+```powershell
+py -m swe_scraper scan --target-set all --allow-partial --board-timeout 300 --output jobs.json
+```
+
+With `--allow-partial`, errors produce exit code 1 when some jobs remain, or 2
+when none remain. JSON contains per-board errors and marks retained records with
+`metadata.board_complete: false`. CSV retains its existing columns, so inspect
+stderr and the exit code or use JSON when you need the failure details.
+
 Output ending in `.csv` is a spreadsheet; output ending in `.json` contains the
 full schema, including source and merge information. Files are written to the
 current folder unless you provide another path.
@@ -53,51 +81,6 @@ other technical internships. Use `--all-jobs` to disable the software-internship
 requirement. Explicit `--location`, `--include`, and `--exclude` filters still apply.
 These two options are mutually exclusive.
 
-### Workday scope and descriptions
-
-Without an explicit target `search_text`, Workday fetches all listing pages;
-the previous default was an upstream `intern` query. This also retains co-op
-titles for local matching. A target's explicit `search_text`, including an empty
-string, is preserved in every mode. `--all-jobs` disables local role filtering;
-it does not override a target's explicitly restricted upstream search.
-
-Workday uses at most 20 rows per page, honors `max_pages` (default 200, maximum
-1000), and fails on short, repeated, malformed, or inconsistent pages. A larger
-ceiling can take longer. Missing titles or direct paths remain failures; the
-scraper does not discard unaccounted-for rows to declare a board complete.
-Malformed rows on an otherwise structured page trigger one fresh recheck of that
-same page. Persistent invalid rows and changed totals still fail.
-
-Ordinary Workday scans use listing titles and locations without requesting every
-description. Location or keyword filters fetch details for plausible internship
-candidates, including additional locations. In `--all-jobs` mode these filters
-require details for every listing. Workday descriptions are empty on the listing
-path, with `metadata.details_complete=false`; requisition IDs are retained in
-`metadata.summary_fields`, not used as job duties.
-
-### Optional reuse of recent details
-
-```powershell
-py -m swe_scraper scan --cache-ttl 900 --output internships.csv
-py -m swe_scraper scan --cache-ttl 900 --refresh --output internships.csv
-```
-
-Caching is disabled by default. `--cache-ttl` accepts 0–3600 seconds and is also
-available for `watch`. Workday, SmartRecruiters and Oracle reuse validated public
-detail responses only after fetching fresh, complete listings. New or changed
-listing rows fetch new details; deleted listings stay absent. `--refresh` bypasses
-reuse and updates the cache. It requires a fresh scan rather than `--resume`.
-
-Description-only changes with unchanged listings can lag until TTL expiry.
-Health checks always make fresh requests. Cache hits retain the original
-`metadata.detail_fetched_at`; `metadata.detail_cached` and
-`metadata.detail_cache_max_age_seconds` identify reuse. Failed listings or expired
-details produce failures, without a stale fallback. The cache is separate from
-resume checkpoints and lives in the OS user cache under `swe-scraper/details`,
-bounded to 4096 completed entries and 128 MiB (10 MiB per entry). Aggregate bounds
-are best effort across processes or disk failures. Caching helps repeat scans;
-it does not remove the listing cost of a first full-catalog scan.
-
 If some boards fail, the command reports their error count. JSON output also
 retains provider failures; CSV contains job rows only.
 
@@ -110,8 +93,9 @@ py -m swe_scraper scan --strict --output jobs.json
 | Scan / watch exit code | Meaning |
 | --- | --- |
 | `0` | No provider errors, or partial results with jobs in the default mode |
-| `1` | `--strict`: some jobs were saved, but one or more providers failed |
+| `1` | `--strict` or `--allow-partial`: some jobs were saved, but one or more providers failed |
 | `2` | Provider errors with no matching jobs, or an invalid command/configuration |
+| `130` | Interrupted by the user |
 
 Results are saved before returning the provider-error status. A healthy scan with
 zero matching jobs exits `0`.

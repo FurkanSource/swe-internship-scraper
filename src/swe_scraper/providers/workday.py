@@ -10,10 +10,11 @@ from dataclasses import replace
 from typing import Any
 from urllib.parse import urlsplit
 
+from ..execution import check_cancelled, partial_allowed
 from ..filters import is_potential_internship_summary
 from ..models import Job
 from ..normalize import normalize_locations
-from ._reliability import detail_json, ordered_details
+from ._reliability import detail_json, enrich_listing, ordered_details, recover_listing
 from .base import JsonClient, Target
 
 
@@ -61,17 +62,23 @@ class WorkdayProvider:
 
     def fetch(self, target: Target, client: JsonClient) -> list[Job]:
         self.validate_target(target)
+        jobs: list[Job] = []
+        return recover_listing(lambda: self._fetch_pages(target, client, jobs), jobs)
+
+    def _fetch_pages(
+        self, target: Target, client: JsonClient, jobs: list[Job]
+    ) -> list[Job]:
         origin = str(target.options.get("origin") or "").rstrip("/")
         tenant = str(target.options.get("tenant") or "").strip()
         site = _site_name(target)
         endpoint = f"{origin}/wday/cxs/{tenant}/{site}/jobs"
         limit = min(_bounded_option(target, "page_size", 20, 1000), 20)
         max_pages = _bounded_option(target, "max_pages", 200, 1000)
-        jobs: list[Job] = []
         expected_total: int | None = None
         seen_ids: set[str] = set()
         seen_urls: set[str] = set()
         for page in range(max_pages):
+            check_cancelled()
             payload = {
                 "appliedFacets": {},
                 "limit": limit,
@@ -94,6 +101,7 @@ class WorkdayProvider:
                 and any(self._row_error(row) for row in data["jobPostings"])
             ):
                 original_total = data.get("total")
+                check_cancelled()
                 data = client.post_json(
                     endpoint,
                     payload,
@@ -130,6 +138,15 @@ class WorkdayProvider:
                 )
             page_jobs = self.parse_page(target, data)
             if len(page_jobs) != len(rows):
+                if partial_allowed():
+                    for job in page_jobs:
+                        if (
+                            job.source_job_id not in seen_ids
+                            and job.application_url not in seen_urls
+                        ):
+                            jobs.append(job)
+                            seen_ids.add(job.source_job_id)
+                            seen_urls.add(job.application_url)
                 index, reason = next(
                     (index, self._row_error(row))
                     for index, row in enumerate(rows)
@@ -190,11 +207,21 @@ class WorkdayProvider:
         self, target: Target, client: JsonClient
     ) -> list[Job]:
         """Enrich candidates when location or keyword constraints need details."""
-        return self._details(target, client, self.fetch_candidates(target, client))
+        return enrich_listing(
+            lambda: self.fetch(target, client),
+            lambda jobs: self._details(
+                target,
+                client,
+                [job for job in jobs if is_potential_internship_summary(job.title)],
+            ),
+        )
 
     def fetch_with_details(self, target: Target, client: JsonClient) -> list[Job]:
         """Enrich full listings when explicit keyword filters require duties."""
-        return self._details(target, client, self.fetch(target, client))
+        return enrich_listing(
+            lambda: self.fetch(target, client),
+            lambda jobs: self._details(target, client, jobs),
+        )
 
     def _details(
         self, target: Target, client: JsonClient, candidates: list[Job]
@@ -268,7 +295,7 @@ class WorkdayProvider:
             locations = normalize_locations([row.get("locationsText") or ""])
             jobs.append(
                 Job(
-                    id=f"workday:{tenant}:{source_id}",
+                    id=f"workday:{urlsplit(origin).netloc}:{tenant}:{site}:{source_id}",
                     company=target.name,
                     title=title,
                     application_url=f"{origin}/{site}{path}",
@@ -278,6 +305,7 @@ class WorkdayProvider:
                     description="",
                     remote=any("remote" in value.casefold() for value in locations),
                     metadata={
+                        "source_namespace": f"{origin}/{tenant}/{site}",
                         "tenant": tenant,
                         "site": site,
                         "posted_on": row.get("postedOn", ""),

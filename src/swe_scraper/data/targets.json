@@ -181,6 +181,7 @@
     {
       "name": "Anduril",
       "slug": "andurilindustries",
+      "listing_only": true,
       "profiles": [
         "all",
         "priority"
@@ -218,14 +219,6 @@
     {
       "name": "Appian",
       "slug": "appian",
-      "profiles": [
-        "all",
-        "priority"
-      ]
-    },
-    {
-      "name": "Applied Intuition",
-      "slug": "appliedintuition",
       "profiles": [
         "all",
         "priority"
@@ -548,6 +541,14 @@
       "slug": "brevium",
       "profiles": [
         "all"
+      ]
+    },
+    {
+      "name": "Brex",
+      "slug": "brex",
+      "profiles": [
+        "all",
+        "priority"
       ]
     },
     {
@@ -4952,14 +4953,6 @@
       ]
     },
     {
-      "name": "Anthropic",
-      "slug": "anthropic",
-      "profiles": [
-        "all",
-        "priority"
-      ]
-    },
-    {
       "name": "Apex",
       "slug": "apex-technology-inc",
       "profiles": [
@@ -4970,7 +4963,8 @@
       "name": "Applied Intuition",
       "slug": "applied",
       "profiles": [
-        "all"
+        "all",
+        "priority"
       ]
     },
     {
@@ -5126,14 +5120,6 @@
       "slug": "bree",
       "profiles": [
         "all"
-      ]
-    },
-    {
-      "name": "Brex",
-      "slug": "brex",
-      "profiles": [
-        "all",
-        "priority"
       ]
     },
     {
@@ -6695,14 +6681,6 @@
       ]
     },
     {
-      "name": "Retool",
-      "slug": "retool",
-      "profiles": [
-        "all",
-        "priority"
-      ]
-    },
-    {
       "name": "Revel",
       "slug": "revel",
       "profiles": [
@@ -6916,14 +6894,6 @@
       ]
     },
     {
-      "name": "Superhuman",
-      "slug": "superhuman",
-      "profiles": [
-        "all",
-        "priority"
-      ]
-    },
-    {
       "name": "Swarm Aero",
       "slug": "swarmaero",
       "profiles": [
@@ -6953,17 +6923,10 @@
     },
     {
       "name": "Talos",
-      "slug": "talos",
+      "slug": "Talos-Trading",
       "profiles": [
         "all",
         "priority"
-      ]
-    },
-    {
-      "name": "Talos",
-      "slug": "Talos-Trading",
-      "profiles": [
-        "all"
       ]
     },
     {
@@ -7449,17 +7412,6 @@
         "all",
         "priority",
         "canary"
-      ]
-    },
-    {
-      "name": "TD Bank / TD Securities",
-      "slug": "TD_Bank_Careers",
-      "origin": "https://td.wd3.myworkdayjobs.com",
-      "tenant": "td",
-      "site": "TD_Bank_Careers",
-      "profiles": [
-        "all",
-        "priority"
       ]
     },
     {

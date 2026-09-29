@@ -32,7 +32,7 @@ _LOCATION_QUERY_ALIASES = {
 
 def _term_pattern(value: str) -> re.Pattern[str]:
     """Treat punctuation-bearing terms as whole tokens, not substrings."""
-    return re.compile(rf"(?<![\w.+#]){re.escape(value.strip())}(?![\w.+#])", re.I)
+    return re.compile(rf"(?<![\w.+#]){re.escape(value.strip())}(?![\w+#]|\.(?=\w))", re.I)
 
 
 ADJACENT = re.compile(

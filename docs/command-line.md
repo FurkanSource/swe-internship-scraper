@@ -53,6 +53,51 @@ other technical internships. Use `--all-jobs` to disable the software-internship
 requirement. Explicit `--location`, `--include`, and `--exclude` filters still apply.
 These two options are mutually exclusive.
 
+### Workday scope and descriptions
+
+Without an explicit target `search_text`, Workday fetches all listing pages;
+the previous default was an upstream `intern` query. This also retains co-op
+titles for local matching. A target's explicit `search_text`, including an empty
+string, is preserved in every mode. `--all-jobs` disables local role filtering;
+it does not override a target's explicitly restricted upstream search.
+
+Workday uses at most 20 rows per page, honors `max_pages` (default 200, maximum
+1000), and fails on short, repeated, malformed, or inconsistent pages. A larger
+ceiling can take longer. Missing titles or direct paths remain failures; the
+scraper does not discard unaccounted-for rows to declare a board complete.
+Malformed rows on an otherwise structured page trigger one fresh recheck of that
+same page. Persistent invalid rows and changed totals still fail.
+
+Ordinary Workday scans use listing titles and locations without requesting every
+description. Location or keyword filters fetch details for plausible internship
+candidates, including additional locations. In `--all-jobs` mode these filters
+require details for every listing. Workday descriptions are empty on the listing
+path, with `metadata.details_complete=false`; requisition IDs are retained in
+`metadata.summary_fields`, not used as job duties.
+
+### Optional reuse of recent details
+
+```powershell
+py -m swe_scraper scan --cache-ttl 900 --output internships.csv
+py -m swe_scraper scan --cache-ttl 900 --refresh --output internships.csv
+```
+
+Caching is disabled by default. `--cache-ttl` accepts 0–3600 seconds and is also
+available for `watch`. Workday, SmartRecruiters and Oracle reuse validated public
+detail responses only after fetching fresh, complete listings. New or changed
+listing rows fetch new details; deleted listings stay absent. `--refresh` bypasses
+reuse and updates the cache. It requires a fresh scan rather than `--resume`.
+
+Description-only changes with unchanged listings can lag until TTL expiry.
+Health checks always make fresh requests. Cache hits retain the original
+`metadata.detail_fetched_at`; `metadata.detail_cached` and
+`metadata.detail_cache_max_age_seconds` identify reuse. Failed listings or expired
+details produce failures, without a stale fallback. The cache is separate from
+resume checkpoints and lives in the OS user cache under `swe-scraper/details`,
+bounded to 4096 completed entries and 128 MiB (10 MiB per entry). Aggregate bounds
+are best effort across processes or disk failures. Caching helps repeat scans;
+it does not remove the listing cost of a first full-catalog scan.
+
 If some boards fail, the command reports their error count. JSON output also
 retains provider failures; CSV contains job rows only.
 

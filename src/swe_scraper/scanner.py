@@ -80,6 +80,9 @@ def scan_targets_detailed(
 ) -> ScanDetails:
     """Fetch targets and retain uncertain duplicate pairs for optional auditing."""
     target_list = list(targets)
+    include_terms = tuple(include_keywords)
+    exclude_terms = tuple(exclude_keywords)
+    location_terms = tuple(locations)
     http = client or RequestsJsonClient()
     jobs: list[Job] = []
     errors: list[ProviderFailure] = []
@@ -112,7 +115,23 @@ def scan_targets_detailed(
         provider = resolved[(target.provider, target.name, target.slug)]
         candidate_fetch = getattr(provider, "fetch_candidates", None)
         if filter_swe and callable(candidate_fetch):
+            enriched_fetch = (
+                getattr(provider, "fetch_candidates_with_details", None)
+                if callable(getattr(type(provider), "fetch_candidates_with_details", None))
+                else None
+            )
+            if (include_terms or exclude_terms or location_terms) and callable(
+                enriched_fetch
+            ):
+                return cast(list[Job], enriched_fetch(target, http))
             return cast(list[Job], candidate_fetch(target, http))
+        detail_fetch = (
+            getattr(provider, "fetch_with_details", None)
+            if callable(getattr(type(provider), "fetch_with_details", None))
+            else None
+        )
+        if (include_terms or exclude_terms or location_terms) and callable(detail_fetch):
+            return cast(list[Job], detail_fetch(target, http))
         return provider.fetch(target, http)
 
     pending_targets: list[tuple[int, Target]] = []
@@ -161,9 +180,9 @@ def scan_targets_detailed(
         jobs,
         filter_swe=filter_swe,
         include_adjacent=include_adjacent,
-        locations=locations,
-        include_keywords=include_keywords,
-        exclude_keywords=exclude_keywords,
+        locations=location_terms,
+        include_keywords=include_terms,
+        exclude_keywords=exclude_terms,
     )
     if audit:
         deduplication = deduplicate_with_audit(jobs)

@@ -13,10 +13,12 @@ from typing import TextIO
 from . import __version__
 from .checkpoints import ScanCheckpointStore
 from .config import load_targets
+from .detail_cache import DetailCache
 from .exporters import write_csv, write_json
 from .health import run_health_checks
 from .models import ScanResult
 from .notifications import JsonLinesNotifier
+from .providers.http import RequestsJsonClient
 from .providers.registry import DEFAULT_REGISTRY
 from .scanner import ScanProgress, scan_targets, scan_targets_detailed
 from .validation import validate_file
@@ -55,6 +57,18 @@ def _add_scan_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--include", action="append", default=[], help="required keyword")
     parser.add_argument("--exclude", action="append", default=[], help="excluded keyword")
     parser.add_argument("--max-workers", type=int, default=8)
+    parser.add_argument(
+        "--cache-ttl",
+        type=int,
+        default=0,
+        metavar="SECONDS",
+        help="reuse unchanged posting details for 1-3600 seconds (default: disabled)",
+    )
+    parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="refresh detail cache entries instead of reusing them",
+    )
     target_set = parser.add_mutually_exclusive_group()
     target_set.add_argument(
         "--quick",
@@ -91,6 +105,11 @@ def _add_scan_options(parser: argparse.ArgumentParser) -> None:
 
 
 def _run_scan(args: argparse.Namespace) -> ScanResult:
+    cache_ttl = getattr(args, "cache_ttl", 0)
+    if not 0 <= cache_ttl <= 3600:
+        raise ValueError("--cache-ttl must be between 0 and 3600 seconds")
+    if getattr(args, "refresh", False) and getattr(args, "resume", False):
+        raise ValueError("--refresh requires a fresh scan without --resume")
     if args.quick and args.targets is not None:
         raise ValueError(
             "--quick uses bundled canaries; for custom --targets use "
@@ -107,12 +126,22 @@ def _run_scan(args: argparse.Namespace) -> ScanResult:
         "include_keywords": args.include,
         "exclude_keywords": args.exclude,
     }
+    if cache_ttl:
+        http = RequestsJsonClient(
+            detail_cache=DetailCache(ttl_seconds=cache_ttl),
+            refresh_cache=getattr(args, "refresh", False),
+        )
+        options["client"] = http
+        args._detail_client = http
     if getattr(args, "resume", False) is True and profile != "all":
         raise ValueError("--resume requires --target-set all")
     if args.command == "scan" and profile == "all":
         scan_options = {
-            key: value for key, value in options.items() if key != "max_workers"
+            key: value
+            for key, value in options.items()
+            if key not in {"max_workers", "client"}
         }
+        scan_options["detail_cache_ttl"] = cache_ttl
         checkpoint_store = ScanCheckpointStore(
             output=args.output,
             targets=targets,
@@ -186,11 +215,22 @@ def _scan_command(args: argparse.Namespace) -> int:
     if checkpoint_store is not None and not result.errors:
         checkpoint_store.clear()
     _console_print(f"Wrote {len(result.jobs)} jobs to {target}")
+    _print_cache_stats(args)
     if result.errors:
         _console_print(
             f"Completed with {len(result.errors)} provider error(s)", file=sys.stderr
         )
     return _scan_exit_code(result, args.strict)
+
+
+def _print_cache_stats(args: argparse.Namespace) -> None:
+    client = getattr(args, "_detail_client", None)
+    if client is not None:
+        _console_print(
+            f"Details: {client.detail_requests} fetched; "
+            f"{client.detail_cache_hits} reused from cache",
+            file=sys.stderr,
+        )
 
 
 def _validate_command(args: argparse.Namespace) -> int:
@@ -213,6 +253,7 @@ def _watch_command(args: argparse.Namespace) -> int:
             target = _write_result(result, args.output, args.format)
             seen = load_seen(args.state)
             new_jobs = unseen_jobs(result.jobs, seen)
+            _print_cache_stats(args)
             _console_print(
                 f"Wrote {len(result.jobs)} jobs to {target}; "
                 f"{len(new_jobs)} new; {len(result.errors)} provider error(s)"

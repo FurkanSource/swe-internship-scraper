@@ -38,8 +38,8 @@ removed for stable `1.0.0`.
 | Mode | Configured employer boards |
 | --- | ---: |
 | `--quick` | 18 monitored sample boards |
-| Default | 73 priority boards |
-| `--target-set all` | 1,295 boards across six providers |
+| Default | 76 priority boards |
+| `--target-set all` | 1,298 boards across six providers |
 
 These are catalog counts, not guarantees that every board is available or has
 internships. Matching uses English job titles; generic program names can be
@@ -96,8 +96,9 @@ Primary record selection uses completeness and stable lexical tie breakers, so t
 
 ## Development
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md), [the provider guide](docs/provider-development.md),
-and [the support policy](SUPPORT.md) before opening an issue or pull request.
+Read the [project guide](PROJECT_GUIDE.md) for contribution checks, support,
+security, conduct and compatibility, and the [provider guide](docs/provider-development.md)
+for adapter changes.
 
 ## License
 

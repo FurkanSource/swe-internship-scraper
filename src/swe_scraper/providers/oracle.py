@@ -5,6 +5,7 @@ from __future__ import annotations
 import html
 import re
 import urllib.parse
+from dataclasses import replace
 from typing import Any
 
 from ..filters import is_potential_internship_summary
@@ -12,6 +13,7 @@ from ..models import Job
 from ..normalize import iso_datetime, normalize_locations
 from ._reliability import (
     PaginationTotalChanged,
+    detail_json,
     detail_workers,
     ordered_details,
     restart_on_total_change,
@@ -102,7 +104,24 @@ class OracleProvider:
                     "finder": (f'ById;Id="{source_id}",siteNumber="{target.slug}"'),
                 },
             )
-            detail_payload = client.get_json(detail_url, headers=headers)
+            detail_payload, provenance = detail_json(
+                client,
+                detail_url,
+                summary,
+                headers=headers,
+                validate=lambda data: (
+                    isinstance(data, dict)
+                    and isinstance(data.get("items"), list)
+                    and bool(data["items"])
+                    and isinstance(data["items"][0], dict)
+                    and bool(
+                        data["items"][0].get("Title")
+                        or data["items"][0].get("RequisitionTitle")
+                        or summary.get("Title")
+                        or summary.get("RequisitionTitle")
+                    )
+                ),
+            )
             detail_rows = (
                 detail_payload.get("items") if isinstance(detail_payload, dict) else None
             )
@@ -114,7 +133,8 @@ class OracleProvider:
                 raise RuntimeError(
                     f"Oracle requisition '{source_id}' returned malformed details"
                 )
-            return self.parse_detail(target, summary, detail_rows[0])
+            job = self.parse_detail(target, summary, detail_rows[0])
+            return replace(job, metadata={**job.metadata, **provenance})
 
         return ordered_details(fetch_detail, summaries, workers)
 

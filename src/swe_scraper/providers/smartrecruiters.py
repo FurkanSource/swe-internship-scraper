@@ -5,6 +5,7 @@ from __future__ import annotations
 import html
 import re
 import urllib.parse
+from dataclasses import replace
 from typing import Any
 
 from ..filters import is_potential_internship_summary
@@ -12,6 +13,7 @@ from ..models import Job
 from ..normalize import iso_datetime, normalize_locations
 from ._reliability import (
     PaginationTotalChanged,
+    detail_json,
     detail_workers,
     ordered_details,
     restart_on_total_change,
@@ -84,14 +86,20 @@ class SmartRecruitersProvider:
             )
         )
 
-        def fetch_detail(source_id: str) -> Job:
-            detail = client.get_json(f"{endpoint}/{urllib.parse.quote(source_id, safe='')}")
+        def fetch_detail(summary: dict[str, Any]) -> Job:
+            source_id = str(summary["id"]).strip()
+            detail, provenance = detail_json(
+                client,
+                f"{endpoint}/{urllib.parse.quote(source_id, safe='')}",
+                summary,
+                validate=lambda data: self.parse_detail(target, data) is not None,
+            )
             parsed = self.parse_detail(target, detail)
             if parsed is None:
                 raise RuntimeError(
                     f"SmartRecruiters posting '{source_id}' returned malformed details"
                 )
-            return parsed
+            return replace(parsed, metadata={**parsed.metadata, **provenance})
 
         return ordered_details(fetch_detail, posting_ids, workers)
 
@@ -102,10 +110,10 @@ class SmartRecruitersProvider:
         endpoint: str,
         *,
         candidates_only: bool = False,
-    ) -> list[str]:
+    ) -> list[dict[str, Any]]:
         page_size = int(target.options.get("page_size", 100))
         max_pages = int(target.options.get("max_pages", 100))
-        posting_ids: list[str] = []
+        posting_ids: list[dict[str, Any]] = []
         seen_ids: set[str] = set()
         expected_total: int | None = None
         offset = 0
@@ -153,12 +161,12 @@ class SmartRecruitersProvider:
                 )
             if candidates_only:
                 posting_ids.extend(
-                    str(row["id"]).strip()
+                    row
                     for row in rows
                     if is_potential_internship_summary(row.get("name") or row.get("title"))
                 )
             else:
-                posting_ids.extend(page_ids)
+                posting_ids.extend(rows)
             seen_ids.update(page_ids)
             offset += len(rows)
             if offset > total:

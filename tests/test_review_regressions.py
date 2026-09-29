@@ -104,7 +104,7 @@ class WorkdayCompletenessTests(unittest.TestCase):
     def test_missing_or_malformed_contract_fails_closed(self):
         for page in self.pages["malformed"]:
             with self.subTest(page=page), self.assertRaises(RuntimeError):
-                self.fetch([page])
+                self.fetch([page, page])
 
     def test_changed_totals_and_repeated_rows_fail_closed(self):
         first, second = self.pages["complete"]

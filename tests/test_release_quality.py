@@ -284,6 +284,9 @@ class RegistryConfigValidationTests(unittest.TestCase):
                 include=[],
                 exclude=[],
                 dedupe_report=dedupe_path,
+                cache_ttl=0,
+                refresh=False,
+                resume=False,
             )
             with (
                 mock.patch("swe_scraper.cli.load_targets", return_value=[]),

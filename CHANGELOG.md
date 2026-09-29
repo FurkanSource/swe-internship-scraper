@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- Honor validated Workday page ceilings above 20 pages and use complete listing
+  scope unless the target explicitly restricts its search. Diagnose invalid rows
+  and repeated pages with offsets.
+- Fetch Workday candidate duties and additional locations only when location or
+  keyword constraints need them; keep ordinary scans and health on listings.
+- Add three fully scanned employer boards: Autodesk, HPE and GE Aerospace.
+- Add opt-in bounded detail caching for Workday, SmartRecruiters and Oracle,
+  preserving fresh listings, force refresh, expiry and original fetch timestamps.
+- Match keyword tokens followed by sentence-ending periods.
+
+Provider behavior changed. A new release candidate and the existing observation
+gates are required before stable promotion; these changes do not publish a release.
+
 This project follows Semantic Versioning.
 
 ## [Unreleased]

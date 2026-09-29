@@ -15,11 +15,7 @@ FILES = (
     "LICENSE",
     "CHANGELOG.md",
     "ARCHITECTURE.md",
-    "CODE_OF_CONDUCT.md",
-    "CONTRIBUTING.md",
-    "SECURITY.md",
-    "SUPPORT.md",
-    "COMPATIBILITY.md",
+    "PROJECT_GUIDE.md",
 )
 DIRECTORIES = (".github", "docs", "plugins", "scripts", "tests")
 

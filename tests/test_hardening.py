@@ -54,7 +54,7 @@ class HardeningTests(unittest.TestCase):
         for provider in {target.provider for target in canaries}:
             self.assertGreaterEqual(provider_counts[provider], 10)
         moog = next(target for target in all_targets if target.name == "Moog")
-        self.assertEqual(moog.options["max_pages"], 20)
+        self.assertEqual(moog.options["max_pages"], 200)
         self.assertFalse((ROOT / "tools" / "targets.json").exists())
         self.assertFalse((ROOT / "tools" / "all_targets.json").exists())
 

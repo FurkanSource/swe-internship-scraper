@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+This project follows Semantic Versioning.
+
+## [Unreleased]
+
+## [1.0.0rc4] - 2026-09-29
+
+### Changed
 
 - Honor validated Workday page ceilings above 20 pages and use complete listing
   scope unless the target explicitly restricts its search. Diagnose invalid rows
@@ -11,13 +17,14 @@
 - Add opt-in bounded detail caching for Workday, SmartRecruiters and Oracle,
   preserving fresh listings, force refresh, expiry and original fetch timestamps.
 - Match keyword tokens followed by sentence-ending periods.
+- Repair stale priority catalog entries for Anthropic, Brex, Applied Intuition,
+  and Talos; retire unsupported Retool, Superhuman, and TD board entries.
+- Use compact Greenhouse listings for Anduril and fetch candidate details when
+  explicit scan constraints require descriptions.
 
-Provider behavior changed. A new release candidate and the existing observation
-gates are required before stable promotion; these changes do not publish a release.
-
-This project follows Semantic Versioning.
-
-## [Unreleased]
+HPE and NVIDIA Workday pages can still return malformed rows; Anduril's listing
+can time out under concurrent load. The seven-day candidate observation and a
+healthy weekly sample remain required before stable promotion.
 
 ## [1.0.0rc3] - 2026-09-26
 

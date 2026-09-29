@@ -39,7 +39,7 @@ removed for stable `1.0.0`.
 | --- | ---: |
 | `--quick` | 18 monitored sample boards |
 | Default | 72 priority boards |
-| `--target-set all` | 1,298 boards across six providers |
+| `--target-set all` | 1,292 boards across six providers |
 
 These are catalog counts, not guarantees that every board is available or has
 internships. Matching uses English job titles; generic program names can be

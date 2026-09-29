@@ -6,12 +6,12 @@
    `src/swe_scraper/__init__.py` to a fresh RC version, write the changelog, and
    set the matching tag/version in `.github/release-candidate.json`. Pin
    `previous_core_version` there to the most recent published core version
-   before creating the tag (for the next candidate after rc3, use `1.0.0rc3`).
+   before creating the tag (for rc4, use `1.0.0rc3`).
 2. Verify the merged commit and create a signed immutable tag:
 
    ```sh
-   git tag -s v1.0.0rc3 -m "SWE Internship Scraper 1.0.0rc3"
-   git push origin v1.0.0rc3
+   git tag -s v1.0.0rc4 -m "SWE Internship Scraper 1.0.0rc4"
+   git push origin v1.0.0rc4
    gh run list --workflow release.yml --limit 5
    ```
 

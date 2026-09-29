@@ -1,0 +1,62 @@
+[
+  {
+    "company": "Autodesk",
+    "title": "Software Engineering Intern Summer 2027",
+    "application_url": "https://autodesk.wd1.myworkdayjobs.com/Ext/job/Norway---Oslo/Software-Engineering-Intern-Summer-2027_26WD100046",
+    "source_job_id": "/job/Norway---Oslo/Software-Engineering-Intern-Summer-2027_26WD100046",
+    "verified_at": "2026-09-28T20:05:16.436333+00:00",
+    "target": {
+      "name": "Autodesk",
+      "slug": "Ext",
+      "origin": "https://autodesk.wd1.myworkdayjobs.com",
+      "tenant": "autodesk",
+      "site": "Ext",
+      "profiles": [
+        "all",
+        "priority"
+      ],
+      "page_size": 20,
+      "max_pages": 200
+    }
+  },
+  {
+    "company": "Hewlett Packard Enterprise",
+    "title": "Software Engineer Intern",
+    "application_url": "https://hpe.wd5.myworkdayjobs.com/Jobsathpe/job/Spring-Texas-United-States-of-America/Software-Engineer-Intern_1213625",
+    "source_job_id": "/job/Spring-Texas-United-States-of-America/Software-Engineer-Intern_1213625",
+    "verified_at": "2026-09-28T20:05:17.327947+00:00",
+    "target": {
+      "name": "Hewlett Packard Enterprise",
+      "slug": "Jobsathpe",
+      "origin": "https://hpe.wd5.myworkdayjobs.com",
+      "tenant": "hpe",
+      "site": "Jobsathpe",
+      "profiles": [
+        "all",
+        "priority"
+      ],
+      "page_size": 20,
+      "max_pages": 200
+    }
+  },
+  {
+    "company": "GE Aerospace",
+    "title": "Engines Engineering Intern – Computer or Software Engineering – US – Summer 2027",
+    "application_url": "https://geaerospace.wd5.myworkdayjobs.com/GE_ExternalSite/job/Evendale/Engines-Engineering-Intern---Computer-or-Software-Engineering---US---Summer-2027_R5029622-1",
+    "source_job_id": "/job/Evendale/Engines-Engineering-Intern---Computer-or-Software-Engineering---US---Summer-2027_R5029622-1",
+    "verified_at": "2026-09-28T20:07:18.815634+00:00",
+    "target": {
+      "name": "GE Aerospace",
+      "slug": "GE_ExternalSite",
+      "origin": "https://geaerospace.wd5.myworkdayjobs.com",
+      "tenant": "geaerospace",
+      "site": "GE_ExternalSite",
+      "profiles": [
+        "all",
+        "priority"
+      ],
+      "page_size": 20,
+      "max_pages": 200
+    }
+  }
+]

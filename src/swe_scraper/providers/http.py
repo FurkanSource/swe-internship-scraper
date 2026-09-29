@@ -6,7 +6,8 @@ import json
 import threading
 import time
 import urllib.parse
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from datetime import datetime, timezone
 from typing import Any
 
 import requests
@@ -14,6 +15,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from .. import __version__
+from ..detail_cache import DetailCache
 
 
 class RequestsJsonClient:
@@ -22,6 +24,8 @@ class RequestsJsonClient:
         timeout: tuple[float, float] = (4.0, 20.0),
         min_host_interval: float = 0.15,
         max_response_bytes: int = 10 * 1024 * 1024,
+        detail_cache: DetailCache | None = None,
+        refresh_cache: bool = False,
     ) -> None:
         self.timeout = timeout
         self.min_host_interval = max(0.0, float(min_host_interval))
@@ -31,6 +35,50 @@ class RequestsJsonClient:
         self._local = threading.local()
         self._rate_lock = threading.Lock()
         self._next_request: dict[str, float] = {}
+        self.detail_cache = detail_cache
+        self.refresh_cache = refresh_cache
+        self._detail_lock = threading.Lock()
+        self.detail_requests = 0
+        self.detail_cache_hits = 0
+
+    def get_detail_json(
+        self,
+        url: str,
+        listing: Any,
+        *,
+        validate: Callable[[Any], bool] | None = None,
+        **kwargs: Any,
+    ) -> tuple[Any, dict[str, Any]]:
+        """Cache only explicitly designated details after current listing validation."""
+        cache = self.detail_cache
+        headers = kwargs.get("headers") or {}
+        if any(str(name).casefold() in {"authorization", "cookie"} for name in headers):
+            cache = None
+        key = {"url": url, "listing": listing, "options": kwargs}
+        entry = cache.load(key) if cache and not self.refresh_cache else None
+        if entry is not None and validate is not None and not validate(entry.payload):
+            entry = None
+        hit = entry is not None
+        if entry is None:
+            payload = self.get_json(url, **kwargs)
+            if validate is not None and not validate(payload):
+                raise RuntimeError(f"Posting at {url} returned malformed details")
+            with self._detail_lock:
+                self.detail_requests += 1
+            if cache:
+                entry = cache.save(key, payload)
+        else:
+            payload = entry.payload
+            with self._detail_lock:
+                self.detail_cache_hits += 1
+        if cache is None:
+            return payload, {}
+        fetched_at = entry.fetched_at if entry else datetime.now(timezone.utc).isoformat()
+        return payload, {
+            "detail_fetched_at": fetched_at,
+            "detail_cached": hit,
+            "detail_cache_max_age_seconds": cache.ttl_seconds,
+        }
 
     def _session(self) -> requests.Session:
         session = getattr(self._local, "session", None)

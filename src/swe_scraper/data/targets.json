@@ -7311,6 +7311,19 @@
       ]
     },
     {
+      "name": "Autodesk",
+      "slug": "Ext",
+      "origin": "https://autodesk.wd1.myworkdayjobs.com",
+      "tenant": "autodesk",
+      "site": "Ext",
+      "profiles": [
+        "all",
+        "priority"
+      ],
+      "page_size": 20,
+      "max_pages": 200
+    },
+    {
       "name": "Cadence",
       "slug": "external_careers",
       "origin": "https://cadence.wd1.myworkdayjobs.com",
@@ -7332,6 +7345,32 @@
         "priority",
         "canary"
       ]
+    },
+    {
+      "name": "GE Aerospace",
+      "slug": "GE_ExternalSite",
+      "origin": "https://geaerospace.wd5.myworkdayjobs.com",
+      "tenant": "geaerospace",
+      "site": "GE_ExternalSite",
+      "profiles": [
+        "all",
+        "priority"
+      ],
+      "page_size": 20,
+      "max_pages": 200
+    },
+    {
+      "name": "Hewlett Packard Enterprise",
+      "slug": "Jobsathpe",
+      "origin": "https://hpe.wd5.myworkdayjobs.com",
+      "tenant": "hpe",
+      "site": "Jobsathpe",
+      "profiles": [
+        "all",
+        "priority"
+      ],
+      "page_size": 20,
+      "max_pages": 200
     },
     {
       "name": "Intel",
@@ -7372,7 +7411,7 @@
       "origin": "https://moog.wd5.myworkdayjobs.com",
       "tenant": "moog",
       "site": "MOOG_External_Career_Site",
-      "max_pages": 20,
+      "max_pages": 200,
       "profiles": [
         "all",
         "priority"
@@ -7398,6 +7437,18 @@
       "profiles": [
         "all",
         "priority"
+      ]
+    },
+    {
+      "name": "Salesforce",
+      "slug": "Futureforce_Internships",
+      "origin": "https://salesforce.wd12.myworkdayjobs.com",
+      "tenant": "salesforce",
+      "site": "Futureforce_Internships",
+      "profiles": [
+        "all",
+        "priority",
+        "canary"
       ]
     },
     {
@@ -7428,18 +7479,6 @@
       "origin": "https://workiva.wd503.myworkdayjobs.com",
       "tenant": "workiva",
       "site": "careers",
-      "profiles": [
-        "all",
-        "priority",
-        "canary"
-      ]
-    },
-    {
-      "name": "Salesforce",
-      "slug": "Futureforce_Internships",
-      "origin": "https://salesforce.wd12.myworkdayjobs.com",
-      "tenant": "salesforce",
-      "site": "Futureforce_Internships",
       "profiles": [
         "all",
         "priority",

@@ -4,12 +4,29 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor
-from typing import TypeVar
+from typing import Any, TypeVar
 
-from .base import Target
+from .base import HttpClient, Target
 
 _Item = TypeVar("_Item")
 _Result = TypeVar("_Result")
+
+
+def detail_json(
+    client: HttpClient,
+    url: str,
+    listing: Any,
+    *,
+    validate: Callable[[Any], bool] | None = None,
+    **kwargs: Any,
+) -> tuple[Any, dict[str, Any]]:
+    """Use optional cache-aware transport without changing custom client contracts."""
+    if callable(getattr(type(client), "get_detail_json", None)):
+        payload, provenance = client.get_detail_json(  # type: ignore[attr-defined]
+            url, listing, validate=validate, **kwargs
+        )
+        return payload, provenance
+    return client.get_json(url, **kwargs), {}
 
 
 class PaginationTotalChanged(RuntimeError):

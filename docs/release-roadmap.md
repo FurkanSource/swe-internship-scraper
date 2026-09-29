@@ -6,10 +6,10 @@ coverage of every employer or country.
 
 | Phase | Work | Completion evidence |
 | --- | --- | --- |
-| 1. Integrate | Merge the verified scraper fixes (PR #7). | Green CI on the merged commit. |
+| 1. Integrate | Merge the verified scraper and catalog changes. | Green CI on the merged commit. |
 | 2. Enforce | Run reusable CI and security workflows inside every release; gate stable core publishing on candidate evidence. | A failing check blocks publishing for the exact tagged commit. |
 | 3. Exercise | Test core alone, plugin discovery, offline scan/export/watch/error behavior, and Windows/Linux/macOS clean installs. | Clean environments outside the source checkout pass. |
-| 4. Candidate | Publish a new immutable rc3 tag with changelog, checksums, SBOM, and provenance. | Exact-version PyPI installation and upgrade tests pass on all three OSes. |
+| 4. Candidate | Publish a new immutable rc4 tag with changelog, checksums, SBOM, and provenance. | Exact-version PyPI installation and upgrade tests pass on all three OSes. |
 | 5. Observe | Run daily and weekly health against the candidate tag, not a moving main branch. | Seven consecutive healthy UTC observation dates and a healthy 60-target weekly sample for the same commit. |
 | 6. Promote | Change only core version metadata and changelog; publish 1.0.0. | Automated stability gate, release checks, and post-publication installation pass. |
 

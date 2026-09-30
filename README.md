@@ -1,16 +1,10 @@
-# SWEpper | SWE Internship Scraper
+# SWE Internship Scraper
 
 [![CI](https://github.com/FurkanSource/swe-internship-scraper/actions/workflows/ci.yml/badge.svg)](https://github.com/FurkanSource/swe-internship-scraper/actions/workflows/ci.yml)
 [![Provider health](https://github.com/FurkanSource/swe-internship-scraper/actions/workflows/provider-health.yml/badge.svg)](https://github.com/FurkanSource/swe-internship-scraper/actions/workflows/provider-health.yml)
 [![PyPI](https://img.shields.io/pypi/v/swe-internship-scraper.svg)](https://pypi.org/project/swe-internship-scraper/)
 
 A command-line tool for finding software engineering internships on official public job boards.
-
-## Project background
-
-**SWEpper** is the resume name for this project; the repository and installable package are named `swe-internship-scraper`.
-
-This is an **AI-assisted build**. Furkan Candar defined requirements and validated results, including CSV/JSON output, cross-provider deduplication, and preservation of direct application URLs. The implementation was developed with AI assistance.
 
 ## Quick start
 

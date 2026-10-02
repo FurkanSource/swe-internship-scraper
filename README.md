@@ -46,8 +46,10 @@ internships. Matching uses English job titles; generic program names can be
 missed. Employer coverage is uneven, and a remote label does not establish
 eligibility to work from every country. Location filters use text matching.
 
-Scans report failed boards. JSON retains failure details; CSV contains only job
-rows. For automation, use `--strict`: exit 1 means partial results were saved;
+Scans retain validated records from incomplete boards by default. Use
+`--complete-boards-only` to discard those boards. JSON retains failure details;
+CSV contains only job rows. Every scan reports incomplete coverage: exit 1 means
+results were saved despite provider failures;
 exit 2 means provider errors left no matching jobs, or configuration was invalid.
 A complete scan with zero matches exits 0. See the
 [command guide](docs/command-line.md) and [release roadmap](docs/release-roadmap.md).

@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
+from contextlib import suppress
 from contextvars import copy_context
-from typing import Any, TypeVar
+from typing import Any, NoReturn, TypeVar
 
 from ..execution import (
     BoardDeadlineExceeded,
     ScanCancelled,
     check_cancelled,
+    check_scan_cancelled,
     partial_allowed,
 )
 from ..models import Job
@@ -43,6 +45,10 @@ class PaginationTotalChanged(RuntimeError):
     """A valid reported total changed within one pagination attempt."""
 
 
+class ListingValidationError(RuntimeError):
+    """Invalid listing records or pagination prevented complete traversal."""
+
+
 def restart_on_total_change(fetch: Callable[[], _Result]) -> _Result:
     """Allow one clean listing restart, propagating every other failure."""
     try:
@@ -71,6 +77,7 @@ def ordered_details(
     workers: int,
     *,
     listing_issues: tuple[FetchIssue, ...] = (),
+    pagination_complete: bool = True,
 ) -> list[Job]:
     """Preserve listing order, with explicit recovery only under partial mode.
 
@@ -83,10 +90,13 @@ def ordered_details(
     def one(item: _Item) -> Job | FetchIssue:
         check_cancelled()
         try:
-            return fetch(item)
+            result = fetch(item)
+            check_cancelled()
+            return result
         except (ScanCancelled, BoardDeadlineExceeded):
             raise
         except Exception as exc:
+            check_scan_cancelled()
             if not partial_allowed():
                 raise
             if isinstance(item, dict):
@@ -104,12 +114,17 @@ def ordered_details(
             jobs.append(value)
 
     if workers == 1:
-        for item in items:
-            collect(one(item))
+        try:
+            check_cancelled()
+            for item in items:
+                collect(one(item))
+        except BoardDeadlineExceeded as exc:
+            _deadline_result(jobs, issues, pagination_complete, exc)
     else:
         # Bound in-flight work without waiting for the slowest item in a batch.
         # Context follows every worker; output order remains listing order.
         iterator = iter(enumerate(items))
+        deadline_error: BoardDeadlineExceeded | None = None
         with ThreadPoolExecutor(max_workers=workers) as executor:
             active: dict[Future[Job | FetchIssue], int] = {}
             results: dict[int, Job | FetchIssue] = {}
@@ -121,27 +136,66 @@ def ordered_details(
                         index, item = next(iterator)
                     except StopIteration:
                         break
+                    check_cancelled()
                     active[executor.submit(copy_context().run, one, item)] = index
+
+            def harvest(done: Iterable[Future[Job | FetchIssue]]) -> None:
+                deadline: BoardDeadlineExceeded | None = None
+                for future in sorted(done, key=lambda value: active[value]):
+                    index = active.pop(future)
+                    try:
+                        results[index] = future.result()
+                    except BoardDeadlineExceeded as exc:
+                        deadline = exc
+                if deadline is not None:
+                    raise deadline
 
             try:
                 replenish()
                 while active:
                     done, _ = wait(active, timeout=0.1, return_when=FIRST_COMPLETED)
+                    harvest(done)
                     check_cancelled()
-                    for future in done:
-                        results[active.pop(future)] = future.result()
                     replenish()
-            except BaseException:
+            except BoardDeadlineExceeded as exc:
+                check_scan_cancelled()
+                if partial_allowed():
+                    # Freeze eligibility before shutdown; later completions are omitted.
+                    ready = [future for future in active if future.done()]
+                    with suppress(BoardDeadlineExceeded):
+                        harvest(ready)
+                deadline_error = exc
+            finally:
                 for future in active:
                     future.cancel()
-                raise
-            for index in sorted(results):
-                collect(results[index])
+        # Shutdown can wait for active requests; cancellation during that wait wins.
+        check_scan_cancelled()
+        for index in sorted(results):
+            collect(results[index])
+        if deadline_error is not None:
+            _deadline_result(jobs, issues, pagination_complete, deadline_error)
+    check_scan_cancelled()
     if issues:
         raise PartialFetchError(
-            BoardFetchResult(tuple(jobs), tuple(issues), not listing_issues)
+            BoardFetchResult(tuple(jobs), tuple(issues), pagination_complete)
         )
     return jobs
+
+
+def _deadline_result(
+    jobs: list[Job],
+    issues: list[FetchIssue],
+    pagination_complete: bool,
+    error: BoardDeadlineExceeded,
+) -> NoReturn:
+    check_scan_cancelled()
+    if not partial_allowed():
+        raise error
+    if not any(issue.stage == "deadline" for issue in issues):
+        issues.append(FetchIssue("deadline", "", f"{error}; unverified work omitted"))
+    raise PartialFetchError(
+        BoardFetchResult(tuple(jobs), tuple(issues), pagination_complete)
+    ) from error
 
 
 def enrich_listing(
@@ -158,6 +212,13 @@ def enrich_listing(
         jobs = list(listing.jobs)
     try:
         jobs = enrich(jobs)
+    except BoardDeadlineExceeded as exc:
+        _deadline_result(
+            [],
+            list(listing.issues) if listing else [],
+            listing.pagination_complete if listing else True,
+            exc,
+        )
     except PartialFetchError as exc:
         if listing is None:
             raise
@@ -177,7 +238,7 @@ def enrich_listing(
 
 def listing_snapshot(
     fetch: Callable[[list[dict[str, Any]]], list[dict[str, Any]]],
-) -> tuple[list[dict[str, Any]], tuple[FetchIssue, ...]]:
+) -> tuple[list[dict[str, Any]], tuple[FetchIssue, ...], bool]:
     """Restart drift once, then retain only the final attempt's verified prefix."""
     retained: list[dict[str, Any]] = []
 
@@ -186,28 +247,35 @@ def listing_snapshot(
         return fetch(retained)
 
     try:
-        return restart_on_total_change(attempt), ()
-    except (ScanCancelled, BoardDeadlineExceeded):
+        return restart_on_total_change(attempt), (), True
+    except ScanCancelled:
         raise
     except Exception as exc:
+        check_scan_cancelled()
         if not partial_allowed():
             raise
-        return retained, (FetchIssue("pagination", "", f"{type(exc).__name__}: {exc}"),)
+        stage = "deadline" if isinstance(exc, BoardDeadlineExceeded) else "pagination"
+        return retained, (FetchIssue(stage, "", f"{type(exc).__name__}: {exc}"),), False
 
 
-def recover_listing(fetch: Callable[[], list[Job]], jobs: list[Job]) -> list[Job]:
+def recover_listing(
+    fetch: Callable[[], list[Job]], jobs: list[Job], *, issues: Iterable[FetchIssue] = ()
+) -> list[Job]:
     """Recover validated rows from a broken listing only under explicit opt-in."""
     try:
         return fetch()
-    except (ScanCancelled, BoardDeadlineExceeded, PartialFetchError):
+    except (ScanCancelled, PartialFetchError):
         raise
+    except BoardDeadlineExceeded as exc:
+        _deadline_result(jobs, list(issues), False, exc)
     except Exception as exc:
+        check_scan_cancelled()
         if not partial_allowed():
             raise
         raise PartialFetchError(
             BoardFetchResult(
                 tuple(jobs),
-                (FetchIssue("pagination", "", f"{type(exc).__name__}: {exc}"),),
+                (*issues, FetchIssue("pagination", "", f"{type(exc).__name__}: {exc}")),
                 False,
             )
         ) from exc
@@ -218,14 +286,16 @@ def parse_listing_rows(rows: list[Any], parse: Callable[[Any], list[Job]]) -> li
     jobs: list[Job] = []
     issues: list[FetchIssue] = []
     for index, row in enumerate(rows):
-        check_cancelled()
         try:
+            check_cancelled()
             parsed = parse(row)
             if len(parsed) != 1:
                 raise ValueError("malformed job record")
             jobs.extend(parsed)
-        except (ScanCancelled, BoardDeadlineExceeded):
+        except ScanCancelled:
             raise
+        except BoardDeadlineExceeded as exc:
+            _deadline_result(jobs, issues, True, exc)
         except Exception as exc:
             source_id = (
                 str(row.get("id") or row.get("jobPostingId") or index)

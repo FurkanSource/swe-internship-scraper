@@ -11,13 +11,20 @@ from typing import cast
 
 from .checkpoints import ScanCheckpointStore
 from .dedupe import PotentialDuplicate, deduplicate, deduplicate_with_audit
-from .execution import FetchControl, ScanCancelled, fetch_context, validate_timeout
+from .execution import (
+    BoardDeadlineExceeded,
+    FetchControl,
+    ScanCancelled,
+    check_scan_cancelled,
+    fetch_context,
+    validate_timeout,
+)
 from .filters import filter_jobs
 from .models import Job, ProviderFailure, ScanResult
 from .providers import Target, get_provider
 from .providers.base import HttpClient, Provider
 from .providers.http import RequestsJsonClient
-from .providers.results import PartialFetchError
+from .providers.results import BoardFetchResult, FetchIssue, PartialFetchError
 
 
 @dataclass(frozen=True, slots=True)
@@ -163,8 +170,22 @@ def scan_targets_detailed(
         control = FetchControl(cancelled, deadline, allow_partial)
         with fetch_context(control):
             control.check()
-            result = fetch_one(target)
-            control.check()
+            try:
+                result = fetch_one(target)
+            except PartialFetchError:
+                check_scan_cancelled()
+                raise
+            try:
+                control.check()
+            except BoardDeadlineExceeded as exc:
+                check_scan_cancelled()
+                if not allow_partial:
+                    raise
+                raise PartialFetchError(
+                    BoardFetchResult(
+                        tuple(result), (FetchIssue("deadline", "", str(exc)),), True
+                    )
+                ) from exc
             return result
 
     pool = ThreadPoolExecutor(max_workers=workers)
@@ -183,6 +204,8 @@ def scan_targets_detailed(
         index, target = futures.pop(future)
         try:
             fetched = future.result()
+        except ScanCancelled:
+            raise
         except PartialFetchError as exc:
             partial_jobs = exc.result.jobs if allow_partial else ()
             jobs.extend(
@@ -194,7 +217,8 @@ def scan_targets_detailed(
                     target.provider,
                     target.name,
                     target.slug,
-                    str(exc),
+                    f"{exc}; {len(partial_jobs)} validated records "
+                    "retained before filtering",
                     partial=bool(partial_jobs),
                     details=tuple(issue.to_dict() for issue in exc.result.issues),
                 )

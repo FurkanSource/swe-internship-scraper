@@ -30,21 +30,30 @@ Use `--board-timeout SECONDS` for an optional total budget per board. Built-in
 HTTP calls and retry/rate-limit waits observe this budget; it is not a hard
 process kill and cannot forcibly interrupt arbitrary plugin code.
 
-By default, a failed board contributes no jobs. `--allow-partial` instead retains
-verified records with explicit failure metadata and a nonzero exit status. For
-Workday listing errors it keeps the validated prefix (including valid rows from
-a malformed page) and stops at that page. Oracle and SmartRecruiters can fetch
-details for the final listing attempt's verified prefix; individual failed details
-are isolated. Single-response Greenhouse, Lever and Ashby lists isolate malformed
-rows. Unsupported plugins keep their strict behavior. Incomplete boards are never
+By default, `scan` retains validated records from incomplete built-in boards.
+`--complete-boards-only` discards those boards; `--allow-partial` explicitly selects
+the default recovery policy. The two flags cannot be combined. Python library
+scans and `watch` keep recovery disabled unless explicitly requested.
+
+Workday rechecks a malformed page once, then recovery retains valid rows and
+continues while pagination remains trustworthy. Drift, repeated pages, corrupt
+envelopes, and page ceilings stop the board with an explicit failure. Oracle and
+SmartRecruiters can fetch details for the final listing attempt's verified prefix
+while budget remains. Raw summaries never become exportable jobs. Individual
+failed details are isolated; a deadline retains already completed validated
+details, without starting further requests. Constraints needing descriptions or
+additional locations never fall back to unfinished summaries. Single-response
+Greenhouse, Lever and Ashby lists isolate malformed rows. Unsupported plugins
+keep their existing fetch contract. Incomplete boards are never
 saved as successful checkpoints, so resume retries them. Health and release gates
 still require complete boards.
 
 ```powershell
-py -m swe_scraper scan --target-set all --allow-partial --board-timeout 300 --output jobs.json
+py -m swe_scraper scan --target-set all --board-timeout 300 --output jobs.json
+py -m swe_scraper scan --complete-boards-only --output jobs.json
 ```
 
-With `--allow-partial`, errors produce exit code 1 when some jobs remain, or 2
+Every scan with provider errors produces exit code 1 when some jobs remain, or 2
 when none remain. JSON contains per-board errors and marks retained records with
 `metadata.board_complete: false`. CSV retains its existing columns, so inspect
 stderr and the exit code or use JSON when you need the failure details.
@@ -131,21 +140,25 @@ it does not remove the listing cost of a first full-catalog scan.
 If some boards fail, the command reports their error count. JSON output also
 retains provider failures; CSV contains job rows only.
 
-For automation that requires a complete scan:
+To exclude all records from boards that did not complete successfully:
 
 ```powershell
-py -m swe_scraper scan --strict --output jobs.json
+py -m swe_scraper scan --complete-boards-only --output jobs.json
 ```
 
 | Scan / watch exit code | Meaning |
 | --- | --- |
-| `0` | No provider errors, or partial results with jobs in the default mode |
-| `1` | `--strict` or `--allow-partial`: some jobs were saved, but one or more providers failed |
+| `0` | Every target succeeded, including a healthy scan with zero matches |
+| `1` | Some jobs were saved, but one or more providers failed |
 | `2` | Provider errors with no matching jobs, or an invalid command/configuration |
 | `130` | Interrupted by the user |
 
 Results are saved before returning the provider-error status. A healthy scan with
 zero matching jobs exits `0`.
+`--strict` remains accepted for scans, but is unnecessary for failure status and
+does not abort scanning at the first error. Export errors also return a failure
+status. Upgrading from an older candidate requires a fresh scan; incompatible
+version/configuration checkpoints are deliberately rejected.
 
 ## Custom boards
 
@@ -177,8 +190,14 @@ py -m swe_scraper health --output provider-health.json
 
 `watch` saves a local seen-jobs file so later runs can report new roles. Without
 `--once`, it repeats every six hours by default; press Ctrl+C to stop it.
+It tracks exact identities across all merged sources, so changing a known job's
+primary source does not produce another alert. Existing state files remain
+readable; aliases are saved for already known jobs too. If a replacement source
+has never shared an observed identity with an older source, it remains a new job.
+`watch --allow-partial` enables recovery and continues after provider failures.
 `watch --strict` stops at the first iteration with provider errors, using the
-same exit codes as `scan --strict`, after saving available results and watch state.
+same exit codes as `scan`, after saving available results and watch state.
+`watch --once` always returns the scan status after its single iteration.
 `health` checks the monitored boards and exits `0` when all pass, `1` when a
 provider still meets quorum despite a failed board, and `2` for a provider
 quorum, contract, or pagination failure.

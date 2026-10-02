@@ -114,6 +114,7 @@ def identity_key(job: Job) -> tuple[str, str]:
 
 
 def _exact_keys(job: Job) -> set[tuple[str, ...]]:
+    """Shared dedupe/watch identities: canonical URLs and explicitly scoped IDs."""
     keys: set[tuple[str, ...]] = set()
     if url := canonical_url(job.application_url):
         keys.add(("url", url))
@@ -222,6 +223,8 @@ def merge_jobs(
     metadata.update(incoming.metadata)
     metadata.pop("source_namespace", None)
     metadata.update(primary.metadata)
+    if any(value.metadata.get("board_complete") is False for value in (existing, incoming)):
+        metadata["board_complete"] = False
     sources = tuple(
         sorted(
             {source for value in (existing, incoming) for source in value.sources},

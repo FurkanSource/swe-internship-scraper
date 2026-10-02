@@ -61,7 +61,7 @@ class ScannerAndCliTests(unittest.TestCase):
             with mock.patch("swe_scraper.cli._run_scan", return_value=result):
                 code = cli.main(["scan", "--output", str(output)])
             report = validate_file(output)
-        self.assertEqual(code, 0)
+        self.assertEqual(code, 1)
         self.assertTrue(report.valid)
 
     def test_scan_command_infers_csv_from_extension(self):

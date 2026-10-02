@@ -2,7 +2,27 @@
 
 This project follows Semantic Versioning.
 
-## [Unreleased]
+## [1.0.0rc5] - Unreleased
+
+### Changed
+
+- CLI scans recover validated records from incomplete built-in boards by default;
+  `--complete-boards-only` restores board-level fail-closed behavior. Library and
+  watch recovery remain opt-in.
+- **Compatibility:** partial scans now always return nonzero: 1 with exported jobs,
+  2 without matching jobs. `--strict` remains accepted and never aborts mid-scan.
+- `watch --allow-partial` continues after provider errors; only `--strict` stops
+  recurring watch on a failed iteration. `--once` returns the scan status.
+- Workday recovery continues past malformed rows with trustworthy pagination,
+  preserving normal empty boards and short final pages.
+- Completed detail results and validated listings survive cooperative deadlines
+  in recovery mode. Required details cannot be replaced by unfinished summaries.
+- Failed-board diagnostics are deterministic and bounded; JSON keeps full errors.
+
+### Release status
+
+This candidate is prepared locally, not published. It requires a new seven-day
+stability observation and the existing weekly gate before stable promotion.
 
 ### Fixed
 
@@ -12,12 +32,15 @@ This project follows Semantic Versioning.
   similarity only in the optional audit. Rank original records deterministically.
 - Cancel queued board/detail work on interruption and preserve completed-board
   checkpoints. Retry delays and page/detail loops honor cooperative cancellation.
+- Track every exact constituent source in watch state, preventing repeat alerts
+  when a merged job changes primary source. Preserve incomplete-board markers
+  across deduplication regardless of primary selection.
 
 ### Added
 
-- Optional `--allow-partial` recovery of verified rows/details from damaged boards,
+- `--allow-partial` recovery of verified rows/details from damaged boards,
   preserving explicit errors and nonzero exit status. Incomplete boards remain
-  eligible for retry; health and default scans retain strict completeness checks.
+  eligible for retry; health retains strict completeness checks.
 - Optional `--board-timeout SECONDS` cooperative per-board deadlines.
 - Broader synthetic identity regression cases. Their pass rate is not a measurement
   of real-world duplicate recall or false-merge frequency.

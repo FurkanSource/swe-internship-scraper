@@ -65,6 +65,12 @@ def check_cancelled() -> None:
         control.check()
 
 
+def check_scan_cancelled() -> None:
+    """Check global cancellation without re-raising an already handled deadline."""
+    if (control := current_control()) and control.cancelled.is_set():
+        raise ScanCancelled("scan cancelled")
+
+
 def partial_allowed() -> bool:
     control = current_control()
     return control is not None and control.allow_partial

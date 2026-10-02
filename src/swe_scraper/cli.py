@@ -57,10 +57,22 @@ def _add_scan_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--include", action="append", default=[], help="required keyword")
     parser.add_argument("--exclude", action="append", default=[], help="excluded keyword")
     parser.add_argument("--max-workers", type=int, default=8)
-    parser.add_argument(
+    recovery = parser.add_mutually_exclusive_group()
+    recovery.add_argument(
         "--allow-partial",
-        action="store_true",
-        help="retain verified jobs from incomplete boards; exit nonzero on errors",
+        action="store_const",
+        const=True,
+        default=None,
+        dest="allow_partial",
+        help="retain verified jobs from incomplete boards (default for scan)",
+    )
+    recovery.add_argument(
+        "--complete-boards-only",
+        action="store_const",
+        const=False,
+        default=None,
+        dest="allow_partial",
+        help="retain jobs only from complete boards (default for watch)",
     )
     parser.add_argument(
         "--board-timeout",
@@ -106,7 +118,7 @@ def _add_scan_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--strict",
         action="store_true",
-        help="exit nonzero on any provider error, after saving available results",
+        help="stop recurring watch on provider errors after export; accepted for scan",
     )
     parser.add_argument(
         "--dedupe-report",
@@ -116,6 +128,10 @@ def _add_scan_options(parser: argparse.ArgumentParser) -> None:
 
 
 def _run_scan(args: argparse.Namespace) -> ScanResult:
+    allow_partial = getattr(args, "allow_partial", None)
+    args.allow_partial = (
+        args.command == "scan" if allow_partial is None else bool(allow_partial)
+    )
     cache_ttl = getattr(args, "cache_ttl", 0)
     if not 0 <= cache_ttl <= 3600:
         raise ValueError("--cache-ttl must be between 0 and 3600 seconds")
@@ -130,7 +146,7 @@ def _run_scan(args: argparse.Namespace) -> ScanResult:
     profile = "canary" if args.quick else args.target_set
     targets = load_targets(args.targets, providers, profile=profile)
     options = {
-        "allow_partial": getattr(args, "allow_partial", False),
+        "allow_partial": args.allow_partial,
         "board_timeout": getattr(args, "board_timeout", None),
         "max_workers": args.max_workers,
         "filter_swe": not args.all_jobs,
@@ -215,10 +231,39 @@ def _write_result(result: ScanResult, output: Path, output_format: str) -> Path:
     return write_csv(result, output) if selected == "csv" else write_json(result, output)
 
 
-def _scan_exit_code(result: ScanResult, strict: bool) -> int:
+def _scan_exit_code(result: ScanResult) -> int:
     if result.errors and not result.jobs:
         return 2
-    return 1 if strict and result.errors else 0
+    return 1 if result.errors else 0
+
+
+def _print_scan_errors(result: ScanResult) -> None:
+    if not result.errors:
+        return
+    _console_print(
+        f"Completed with {len(result.errors)} provider error(s)", file=sys.stderr
+    )
+    errors = sorted(
+        result.errors,
+        key=lambda error: (
+            error.provider,
+            error.company.casefold(),
+            error.company,
+            error.slug,
+            error.error,
+        ),
+    )
+    for error in errors[:10]:
+        message = " ".join(
+            f"{error.provider}/{error.slug} ({error.company}): {error.error}".split()
+        )
+        if len(message) > 320:
+            message = message[:317] + "..."
+        _console_print(f"  - {message}", file=sys.stderr)
+    if len(errors) > 10:
+        _console_print(
+            f"  ... {len(errors) - 10} additional failed board(s)", file=sys.stderr
+        )
 
 
 def _scan_command(args: argparse.Namespace) -> int:
@@ -229,11 +274,8 @@ def _scan_command(args: argparse.Namespace) -> int:
         checkpoint_store.clear()
     _console_print(f"Wrote {len(result.jobs)} jobs to {target}")
     _print_cache_stats(args)
-    if result.errors:
-        _console_print(
-            f"Completed with {len(result.errors)} provider error(s)", file=sys.stderr
-        )
-    return _scan_exit_code(result, args.strict or args.allow_partial)
+    _print_scan_errors(result)
+    return _scan_exit_code(result)
 
 
 def _print_cache_stats(args: argparse.Namespace) -> None:
@@ -271,14 +313,15 @@ def _watch_command(args: argparse.Namespace) -> int:
                 f"Wrote {len(result.jobs)} jobs to {target}; "
                 f"{len(new_jobs)} new; {len(result.errors)} provider error(s)"
             )
+            _print_scan_errors(result)
             for job in new_jobs[:20]:
                 _console_print(f"  {job.company} — {job.title}: {job.application_url}")
             if new_jobs and args.notify_jsonl:
                 JsonLinesNotifier(args.notify_jsonl).notify(new_jobs)
             if result.jobs or not result.errors:
                 save_seen(args.state, result.jobs)
-            if args.once or ((args.strict or args.allow_partial) and result.errors):
-                return _scan_exit_code(result, args.strict or args.allow_partial)
+            if args.once or (args.strict and result.errors):
+                return _scan_exit_code(result)
             time.sleep(args.interval)
     except KeyboardInterrupt:
         return 130

@@ -13,6 +13,7 @@ from ..filters import is_potential_internship_summary
 from ..models import Job
 from ..normalize import iso_datetime, normalize_locations
 from ._reliability import (
+    ListingValidationError,
     PaginationTotalChanged,
     detail_json,
     detail_workers,
@@ -81,7 +82,7 @@ class SmartRecruitersProvider:
         company = urllib.parse.quote(target.slug, safe="")
         endpoint = f"https://api.smartrecruiters.com/v1/companies/{company}/postings"
         workers = detail_workers(target)
-        posting_ids, listing_issues = listing_snapshot(
+        posting_ids, listing_issues, pagination_complete = listing_snapshot(
             lambda retained: self._fetch_posting_ids(
                 target, client, endpoint, candidates_only=candidates_only, retained=retained
             )
@@ -103,7 +104,11 @@ class SmartRecruitersProvider:
             return replace(parsed, metadata={**parsed.metadata, **provenance})
 
         return ordered_details(
-            fetch_detail, posting_ids, workers, listing_issues=listing_issues
+            fetch_detail,
+            posting_ids,
+            workers,
+            listing_issues=listing_issues,
+            pagination_complete=pagination_complete,
         )
 
     def _fetch_posting_ids(
@@ -135,12 +140,12 @@ class SmartRecruitersProvider:
             if not isinstance(payload, dict) or not isinstance(
                 payload.get("content"), list
             ):
-                raise RuntimeError(
+                raise ListingValidationError(
                     f"SmartRecruiters board '{target.name}' returned a malformed page"
                 )
             total = payload.get("totalFound")
             if isinstance(total, bool) or not isinstance(total, int) or total < 0:
-                raise RuntimeError(
+                raise ListingValidationError(
                     f"SmartRecruiters board '{target.name}' omitted totalFound"
                 )
             if expected_total is None:
@@ -157,13 +162,17 @@ class SmartRecruitersProvider:
                 if isinstance(row, dict) and str(row.get("id") or "").strip()
             ]
             if len(page_ids) != len(rows):
-                raise RuntimeError("SmartRecruiters page contains a job without an ID")
+                raise ListingValidationError(
+                    "SmartRecruiters page contains a job without an ID"
+                )
             if len(set(page_ids)) != len(page_ids) or any(
                 value in seen_ids for value in page_ids
             ):
-                raise RuntimeError(
+                raise ListingValidationError(
                     f"SmartRecruiters board '{target.name}' repeated a pagination page"
                 )
+            if offset + len(rows) > total:
+                raise ListingValidationError("SmartRecruiters page exceeded totalFound")
             if candidates_only:
                 posting_ids.extend(
                     row
@@ -174,18 +183,16 @@ class SmartRecruitersProvider:
                 posting_ids.extend(rows)
             seen_ids.update(page_ids)
             offset += len(rows)
-            if offset > total:
-                raise RuntimeError("SmartRecruiters page exceeded totalFound")
             if offset >= total:
                 complete = True
                 break
             if not rows:
-                raise RuntimeError(
+                raise ListingValidationError(
                     f"SmartRecruiters board '{target.name}' pagination stopped "
                     "before totalFound"
                 )
         if not complete:
-            raise RuntimeError(
+            raise ListingValidationError(
                 f"SmartRecruiters board '{target.name}' exceeded configured "
                 "pagination limit"
             )

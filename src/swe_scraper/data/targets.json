@@ -4890,13 +4890,6 @@
       ]
     },
     {
-      "name": "Airspace Intelligence",
-      "slug": "airspace-intelligence",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Allen Control Systems",
       "slug": "allen-control-systems",
       "profiles": [
@@ -4998,13 +4991,6 @@
     {
       "name": "Astronomer",
       "slug": "astronomer",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "Atomic Semi",
-      "slug": "atomicsemi",
       "profiles": [
         "all"
       ]
@@ -5222,13 +5208,6 @@
       ]
     },
     {
-      "name": "ConductorOne",
-      "slug": "conductorone",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Confluent",
       "slug": "confluent",
       "profiles": [
@@ -5390,13 +5369,6 @@
       ]
     },
     {
-      "name": "Egra",
-      "slug": "egra",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Eigen Labs",
       "slug": "eigen-labs",
       "profiles": [
@@ -5460,13 +5432,6 @@
       ]
     },
     {
-      "name": "ether.fi",
-      "slug": "ether",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "ETHGlobal",
       "slug": "ethglobal",
       "profiles": [
@@ -5516,13 +5481,6 @@
       ]
     },
     {
-      "name": "Fanvue",
-      "slug": "fanvue",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Farsight",
       "slug": "farsight",
       "profiles": [
@@ -5532,13 +5490,6 @@
     {
       "name": "Firetiger",
       "slug": "firetiger",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "Flagright",
-      "slug": "flagright",
       "profiles": [
         "all"
       ]
@@ -5609,13 +5560,6 @@
     {
       "name": "General Intuition &amp; Medal",
       "slug": "generalintuition-medal",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "Genesis Therapeutics",
-      "slug": "genesis-therapeutics",
       "profiles": [
         "all"
       ]
@@ -5768,13 +5712,6 @@
       ]
     },
     {
-      "name": "Hippocratic AI",
-      "slug": "Hippocratic",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Hiverge",
       "slug": "hiverge",
       "profiles": [
@@ -5789,13 +5726,6 @@
       ]
     },
     {
-      "name": "Hubs.is",
-      "slug": "hubs",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Human Computer Lab",
       "slug": "human-computer-lab",
       "profiles": [
@@ -5805,13 +5735,6 @@
     {
       "name": "Hypercubic",
       "slug": "hypercubic",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "IA Collaborative",
-      "slug": "iacollaborative",
       "profiles": [
         "all"
       ]
@@ -5854,13 +5777,6 @@
     {
       "name": "Insitro",
       "slug": "insitro",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "Inspiration Commerce Group",
-      "slug": "inspiration-commerce-group",
       "profiles": [
         "all"
       ]
@@ -5951,13 +5867,6 @@
       ]
     },
     {
-      "name": "kos.ai",
-      "slug": "kos",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Lambda",
       "slug": "lambda",
       "profiles": [
@@ -5965,22 +5874,8 @@
       ]
     },
     {
-      "name": "Latitude.io",
-      "slug": "latitude",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Leland",
       "slug": "leland",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "Lindy",
-      "slug": "lindy",
       "profiles": [
         "all"
       ]
@@ -6029,20 +5924,6 @@
       ]
     },
     {
-      "name": "Mach Industries",
-      "slug": "mach",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "Marathon Fusion",
-      "slug": "Marathon",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Mariana Minerals",
       "slug": "marianaminerals",
       "profiles": [
@@ -6059,13 +5940,6 @@
     {
       "name": "Maxima",
       "slug": "maxima",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "Maximor AI",
-      "slug": "maximor",
       "profiles": [
         "all"
       ]
@@ -6106,13 +5980,6 @@
       ]
     },
     {
-      "name": "Mentis AI",
-      "slug": "mentis",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Mercor",
       "slug": "mercor",
       "profiles": [
@@ -6129,20 +5996,6 @@
     {
       "name": "Mind Robotics",
       "slug": "mindrobotics",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "Mistral AI",
-      "slug": "mistral",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "Mistral AI",
-      "slug": "mtesting",
       "profiles": [
         "all"
       ]
@@ -6290,13 +6143,6 @@
       ]
     },
     {
-      "name": "Odin Dynamics, Inc",
-      "slug": "odin-dynamics",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Odys Aviation",
       "slug": "odys-aviation",
       "profiles": [
@@ -6356,13 +6202,6 @@
     {
       "name": "Orbital Industries",
       "slug": "orbitalindustries",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "Orbital Materials",
-      "slug": "orbitalmaterials",
       "profiles": [
         "all"
       ]
@@ -6659,13 +6498,6 @@
       ]
     },
     {
-      "name": "Remedy Scientific",
-      "slug": "Remedy",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Replit",
       "slug": "replit",
       "profiles": [
@@ -6718,13 +6550,6 @@
     {
       "name": "Rivet Industries",
       "slug": "rivet",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "Rivian and Volkswagen Group Technologies",
-      "slug": "rivianvw",
       "profiles": [
         "all"
       ]
@@ -6887,13 +6712,6 @@
       ]
     },
     {
-      "name": "Super",
-      "slug": "super",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Swarm Aero",
       "slug": "swarmaero",
       "profiles": [
@@ -6927,13 +6745,6 @@
       "profiles": [
         "all",
         "priority"
-      ]
-    },
-    {
-      "name": "Tandem",
-      "slug": "tandem",
-      "profiles": [
-        "all"
       ]
     },
     {
@@ -6974,13 +6785,6 @@
     {
       "name": "Tessera Labs",
       "slug": "tessera-labs",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "The Browser Company",
-      "slug": "the",
       "profiles": [
         "all"
       ]
@@ -7030,13 +6834,6 @@
     {
       "name": "Triumph",
       "slug": "triumph-arcade",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
-      "name": "Tuesday Lab",
-      "slug": "tuesday-lab",
       "profiles": [
         "all"
       ]
@@ -7120,13 +6917,6 @@
       ]
     },
     {
-      "name": "Veeda AI",
-      "slug": "veeda-labs",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Vega Investment Technologies",
       "slug": "vega",
       "profiles": [
@@ -7146,13 +6936,6 @@
       "profiles": [
         "all",
         "priority"
-      ]
-    },
-    {
-      "name": "Verne Robotics",
-      "slug": "Verne",
-      "profiles": [
-        "all"
       ]
     },
     {

@@ -5,7 +5,10 @@ from __future__ import annotations
 import datetime as dt
 from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .board_results import BoardResult
 
 SCHEMA_VERSION = 2
 
@@ -194,22 +197,28 @@ class ScanResult:
     jobs: tuple[Job, ...]
     errors: tuple[ProviderFailure, ...] = ()
     generated_at: str = field(
-        default_factory=lambda: dt.datetime.now(dt.timezone.utc)
-        .replace(microsecond=0)
-        .isoformat()
+        default_factory=lambda: (
+            dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+        )
     )
+    board_results: tuple[BoardResult, ...] | None = None
 
     @classmethod
     def from_iterables(
         cls,
         jobs: Iterable[Job],
         errors: Iterable[ProviderFailure] = (),
+        board_results: Iterable[BoardResult] | None = None,
     ) -> ScanResult:
-        return cls(tuple(jobs), tuple(errors))
+        return cls(
+            tuple(jobs),
+            tuple(errors),
+            board_results=None if board_results is None else tuple(board_results),
+        )
 
     def to_dict(self) -> dict[str, Any]:
         providers = sorted({job.provider for job in self.jobs})
-        return {
+        result = {
             "schema_version": SCHEMA_VERSION,
             "generated_at": self.generated_at,
             "job_count": len(self.jobs),
@@ -218,3 +227,6 @@ class ScanResult:
             "jobs": [job.to_dict() for job in self.jobs],
             "errors": [error.to_dict() for error in self.errors],
         }
+        if self.board_results is not None:
+            result["board_results"] = [board.to_dict() for board in self.board_results]
+        return result

@@ -2,6 +2,27 @@
 
 This project follows Semantic Versioning.
 
+## [1.0.0rc6] - Unreleased
+
+### Added
+
+- Opt-in `scan --include-board-results` JSON provenance for each requested
+  board, including empty and failed boards, with stable target keys and
+  pre-deduplication source identities. Default schema v2 output is unchanged.
+
+### Changed
+
+- Retired 31 Ashby catalog slugs whose public posting endpoint failed and
+  whose fallback API returned no job board in the October 19 full scan.
+  The catalog now has 1,261 targets. Re-add a company after finding a valid
+  official board identifier.
+
+### Release status
+
+This candidate requires build, live, publication, and clean-install gates.
+Stable promotion retains its separate seven-day observation requirement.
+The rc5 changes below were prepared locally but rc5 was not published.
+
 ## [1.0.0rc5] - Unreleased
 
 ### Changed

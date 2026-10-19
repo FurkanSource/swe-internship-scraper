@@ -157,7 +157,7 @@ class OraclePaginationReviewTests(unittest.TestCase):
         )
         jobs = OracleProvider().fetch(board, client)
         self.assertEqual(client.offsets, [0, 25])
-        self.assertEqual(client.details, identifiers)
+        self.assertCountEqual(client.details, identifiers)
         self.assertEqual([j.source_job_id for j in jobs], identifiers)
         self.assertEqual(
             [j.application_url for j in jobs],

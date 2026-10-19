@@ -26,6 +26,21 @@ completed-board checkpoints and exits with code 130. Active socket operations
 may take their configured timeout to finish; custom plugins must cooperate with
 cancellation to stop promptly.
 
+For consumers that need board-level closure evidence, add `--include-board-results`
+to a JSON `scan`. This opt-in keeps schema version 2 and adds `board_results`
+to the same atomic output file. Every requested target has one result, including
+successful boards with zero matching jobs. Each result has a stable SHA-256
+`target_key`, `provider`, `slug`, `status` (`complete`, `partial`, or
+`failed`), `job_count` after scan filters but before cross-board deduplication,
+and `sources` from that board's matching records. Each source has
+`provider`, `namespace`, `source_job_id`, and `application_url`. Keys are
+derived from provider, slug, origin, tenant, and site; names and pagination
+settings do not affect them. Duplicate keys fail before network access.
+Incomplete boards must never be treated as evidence that a role closed.
+The flag requires JSON output and does not change JSON output when omitted.
+The authoritative optional-field shape is in
+[`board-results.schema.json`](board-results.schema.json).
+
 Use `--board-timeout SECONDS` for an optional total budget per board. Built-in
 HTTP calls and retry/rate-limit waits observe this budget; it is not a hard
 process kill and cannot forcibly interrupt arbitrary plugin code.

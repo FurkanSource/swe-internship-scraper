@@ -145,6 +145,12 @@ def _run_scan(args: argparse.Namespace) -> ScanResult:
     providers = _csv_values(args.providers)
     profile = "canary" if args.quick else args.target_set
     targets = load_targets(args.targets, providers, profile=profile)
+    include_board_results = bool(getattr(args, "include_board_results", False))
+    if include_board_results and (
+        args.format == "csv"
+        or (args.format == "auto" and args.output.suffix.casefold() == ".csv")
+    ):
+        raise ValueError("--include-board-results requires JSON output")
     options = {
         "allow_partial": args.allow_partial,
         "board_timeout": getattr(args, "board_timeout", None),
@@ -154,6 +160,7 @@ def _run_scan(args: argparse.Namespace) -> ScanResult:
         "locations": args.location,
         "include_keywords": args.include,
         "exclude_keywords": args.exclude,
+        "include_board_results": include_board_results,
     }
     if cache_ttl:
         http = RequestsJsonClient(
@@ -372,6 +379,11 @@ def build_parser() -> argparse.ArgumentParser:
     _add_scan_options(scan)
     scan.add_argument("--output", type=Path, default=Path("jobs.json"))
     scan.add_argument("--format", choices=("auto", "json", "csv"), default="auto")
+    scan.add_argument(
+        "--include-board-results",
+        action="store_true",
+        help="include per-board completion and source identities in JSON output",
+    )
     scan.add_argument(
         "--resume",
         action="store_true",

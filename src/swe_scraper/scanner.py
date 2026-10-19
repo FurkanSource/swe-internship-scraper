@@ -7,8 +7,9 @@ from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass, replace
 from threading import Event
 from time import monotonic
-from typing import cast
+from typing import Literal, cast
 
+from .board_results import BoardResult, target_key
 from .checkpoints import ScanCheckpointStore
 from .dedupe import PotentialDuplicate, deduplicate, deduplicate_with_audit
 from .execution import (
@@ -59,6 +60,7 @@ def scan_targets(
     checkpoint_store: ScanCheckpointStore | None = None,
     allow_partial: bool = False,
     board_timeout: float | None = None,
+    include_board_results: bool = False,
 ) -> ScanResult:
     """Fetch targets concurrently while preserving board-level failures."""
     return scan_targets_detailed(
@@ -75,6 +77,7 @@ def scan_targets(
         audit=False,
         allow_partial=allow_partial,
         board_timeout=board_timeout,
+        include_board_results=include_board_results,
     ).result
 
 
@@ -93,6 +96,7 @@ def scan_targets_detailed(
     audit: bool = True,
     allow_partial: bool = False,
     board_timeout: float | None = None,
+    include_board_results: bool = False,
 ) -> ScanDetails:
     """Fetch targets and retain uncertain duplicate pairs for optional auditing."""
     validate_timeout(board_timeout)
@@ -103,6 +107,8 @@ def scan_targets_detailed(
     http = client or RequestsJsonClient()
     jobs: list[Job] = []
     errors: list[ProviderFailure] = []
+    board_jobs: dict[int, list[Job]] = {}
+    board_status: dict[int, Literal["complete", "partial", "failed"]] = {}
     started = monotonic()
     completed = 0
     resumed = 0
@@ -121,7 +127,13 @@ def scan_targets_detailed(
             )
 
     resolved: dict[tuple[str, str, str], Provider] = {}
+    seen_keys: set[str] = set()
     for target in target_list:
+        if include_board_results:
+            key = target_key(target)
+            if key in seen_keys:
+                raise ValueError(f"duplicate target_key: {key}")
+            seen_keys.add(key)
         provider = get_provider(target.provider)
         validator = getattr(provider, "validate_target", None)
         if callable(validator):
@@ -158,6 +170,8 @@ def scan_targets_detailed(
             pending_targets.append((index, target))
         else:
             jobs.extend(cached)
+            board_jobs[index] = cached
+            board_status[index] = "complete"
             resumed += 1
             completed += 1
     report_progress()
@@ -208,6 +222,8 @@ def scan_targets_detailed(
             raise
         except PartialFetchError as exc:
             partial_jobs = exc.result.jobs if allow_partial else ()
+            board_jobs[index] = list(partial_jobs)
+            board_status[index] = "partial"
             jobs.extend(
                 replace(job, metadata={**job.metadata, "board_complete": False})
                 for job in partial_jobs
@@ -224,6 +240,8 @@ def scan_targets_detailed(
                 )
             )
         except Exception as exc:
+            board_jobs[index] = []
+            board_status[index] = "failed"
             errors.append(
                 ProviderFailure(
                     target.provider,
@@ -236,6 +254,8 @@ def scan_targets_detailed(
             if checkpoint_store:
                 checkpoint_store.save(index, target, fetched)
             jobs.extend(fetched)
+            board_jobs[index] = fetched
+            board_status[index] = "complete"
         completed += 1
 
     try:
@@ -268,7 +288,7 @@ def scan_targets_detailed(
     else:
         pool.shutdown(wait=True)
 
-    jobs = filter_jobs(
+    filtered_jobs = filter_jobs(
         jobs,
         filter_swe=filter_swe,
         include_adjacent=include_adjacent,
@@ -276,15 +296,32 @@ def scan_targets_detailed(
         include_keywords=include_terms,
         exclude_keywords=exclude_terms,
     )
+    board_results = None
+    if include_board_results:
+        board_results = tuple(
+            BoardResult.from_jobs(
+                target,
+                board_status[index],
+                filter_jobs(
+                    board_jobs[index],
+                    filter_swe=filter_swe,
+                    include_adjacent=include_adjacent,
+                    locations=location_terms,
+                    include_keywords=include_terms,
+                    exclude_keywords=exclude_terms,
+                ),
+            )
+            for index, target in enumerate(target_list)
+        )
     if audit:
-        deduplication = deduplicate_with_audit(jobs)
+        deduplication = deduplicate_with_audit(filtered_jobs)
         unique_jobs = deduplication.jobs
         potentials = deduplication.potential_duplicates
     else:
-        unique_jobs = tuple(deduplicate(jobs))
+        unique_jobs = tuple(deduplicate(filtered_jobs))
         potentials = ()
     errors.sort(key=lambda error: (error.provider, error.company.casefold(), error.slug))
     return ScanDetails(
-        ScanResult.from_iterables(unique_jobs, errors),
+        ScanResult.from_iterables(unique_jobs, errors, board_results),
         potentials,
     )

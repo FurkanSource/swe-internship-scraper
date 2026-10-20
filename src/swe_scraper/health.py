@@ -12,8 +12,10 @@ from time import perf_counter
 
 from .models import Job, ScanResult
 from .providers import Target, get_provider
+from .providers._reliability import ListingValidationError
 from .providers.base import HttpClient
 from .providers.http import RequestsJsonClient
+from .providers.results import PartialFetchError
 
 
 class HealthStatus(str, Enum):
@@ -169,14 +171,16 @@ def evaluate_target_health(
 
 
 def _failure_category(exc: Exception) -> str:
+    if isinstance(exc, ListingValidationError):
+        return "pagination"
     message = str(exc).casefold()
     if "pagination" in message or "hasmore" in message:
         return "pagination"
-    if "timeout" in message:
+    if "timeout" in message or isinstance(exc, TimeoutError):
         return "timeout"
     if "http" in message or "status" in message:
         return "http"
-    if isinstance(exc, ValueError):
+    if isinstance(exc, ValueError) or "malformed" in message:
         return "contract"
     return "provider"
 
@@ -224,6 +228,13 @@ def run_health_checks(
             )
         except Exception as exc:
             category = _failure_category(exc)
+            pagination_complete = category != "pagination"
+            if isinstance(exc, PartialFetchError):
+                pagination_complete = exc.result.pagination_complete
+                if not pagination_complete:
+                    category = "pagination"
+                elif any(issue.stage == "record" for issue in exc.result.issues):
+                    category = "contract"
             return TargetHealth(
                 target.provider,
                 target.name,
@@ -232,7 +243,7 @@ def run_health_checks(
                 perf_counter() - started,
                 f"{type(exc).__name__}: {exc}",
                 category,
-                category != "pagination",
+                pagination_complete,
             )
 
     workers = min(max(1, int(max_workers)), max(1, len(target_list)), 32)

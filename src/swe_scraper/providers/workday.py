@@ -10,11 +10,13 @@ from dataclasses import replace
 from typing import Any
 from urllib.parse import urlsplit
 
+from ..execution import check_cancelled, partial_allowed
 from ..filters import is_potential_internship_summary
 from ..models import Job
 from ..normalize import normalize_locations
-from ._reliability import detail_json, ordered_details
+from ._reliability import detail_json, enrich_listing, ordered_details, recover_listing
 from .base import JsonClient, Target
+from .results import BoardFetchResult, FetchIssue, PartialFetchError
 
 
 def _site_name(target: Target) -> str:
@@ -61,17 +63,28 @@ class WorkdayProvider:
 
     def fetch(self, target: Target, client: JsonClient) -> list[Job]:
         self.validate_target(target)
+        jobs: list[Job] = []
+        issues: list[FetchIssue] = []
+        return recover_listing(
+            lambda: self._fetch_pages(target, client, jobs, issues), jobs, issues=issues
+        )
+
+    def _fetch_pages(
+        self, target: Target, client: JsonClient, jobs: list[Job], issues: list[FetchIssue]
+    ) -> list[Job]:
         origin = str(target.options.get("origin") or "").rstrip("/")
         tenant = str(target.options.get("tenant") or "").strip()
         site = _site_name(target)
         endpoint = f"{origin}/wday/cxs/{tenant}/{site}/jobs"
         limit = min(_bounded_option(target, "page_size", 20, 1000), 20)
         max_pages = _bounded_option(target, "max_pages", 200, 1000)
-        jobs: list[Job] = []
         expected_total: int | None = None
         seen_ids: set[str] = set()
         seen_urls: set[str] = set()
+        seen_pages: set[str] = set()
+        raw_count = 0
         for page in range(max_pages):
+            check_cancelled()
             payload = {
                 "appliedFacets": {},
                 "limit": limit,
@@ -94,6 +107,7 @@ class WorkdayProvider:
                 and any(self._row_error(row) for row in data["jobPostings"])
             ):
                 original_total = data.get("total")
+                check_cancelled()
                 data = client.post_json(
                     endpoint,
                     payload,
@@ -128,36 +142,61 @@ class WorkdayProvider:
                 raise RuntimeError(
                     f"Workday board '{target.name}' changed pagination total"
                 )
-            page_jobs = self.parse_page(target, data)
-            if len(page_jobs) != len(rows):
-                index, reason = next(
-                    (index, self._row_error(row))
-                    for index, row in enumerate(rows)
-                    if self._row_error(row)
-                )
+            if len(rows) > limit or raw_count + len(rows) > expected_total:
                 raise RuntimeError(
-                    f"Workday board '{target.name}' returned invalid pagination rows "
-                    f"at offset {page * limit}, row {index}: {reason}"
+                    f"Workday board '{target.name}' returned inconsistent pagination counts"
                 )
+            fingerprint = hashlib.sha256(
+                json.dumps(rows, sort_keys=True).encode("utf-8")
+            ).hexdigest()
+            if fingerprint in seen_pages:
+                raise RuntimeError(
+                    f"Workday board '{target.name}' repeated pagination page "
+                    f"at offset {page * limit}"
+                )
+            page_jobs = self.parse_page(target, data)
+            page_ids: set[str] = set()
+            page_urls: set[str] = set()
             for job in page_jobs:
-                if job.source_job_id in seen_ids or job.application_url in seen_urls:
+                if (
+                    job.source_job_id in seen_ids
+                    or job.source_job_id in page_ids
+                    or job.application_url in seen_urls
+                    or job.application_url in page_urls
+                ):
                     raise RuntimeError(
                         f"Workday board '{target.name}' repeated pagination rows "
                         f"at offset {page * limit}"
                     )
-                seen_ids.add(job.source_job_id)
-                seen_urls.add(job.application_url)
-            jobs.extend(page_jobs)
-            if len(rows) > limit or len(jobs) > expected_total:
-                raise RuntimeError(
-                    f"Workday board '{target.name}' returned inconsistent pagination counts"
+                page_ids.add(job.source_job_id)
+                page_urls.add(job.application_url)
+            for index, row in enumerate(rows):
+                reason = self._row_error(row)
+                if not reason:
+                    continue
+                message = (
+                    f"Workday board '{target.name}' returned invalid pagination rows "
+                    f"at offset {page * limit}, row {index}: {reason}"
                 )
-            if len(jobs) == expected_total:
+                if not partial_allowed():
+                    raise RuntimeError(message)
+                source_id = str(row.get("jobReqId") or "") if isinstance(row, dict) else ""
+                issues.append(FetchIssue("record", source_id, message))
+            seen_pages.add(fingerprint)
+            seen_ids.update(page_ids)
+            seen_urls.update(page_urls)
+            jobs.extend(page_jobs)
+            raw_count += len(rows)
+            if raw_count == expected_total:
+                if issues:
+                    raise PartialFetchError(
+                        BoardFetchResult(tuple(jobs), tuple(issues), True)
+                    )
                 return jobs
             if len(rows) < limit:
                 raise RuntimeError(
                     f"Workday board '{target.name}' returned incomplete pagination "
-                    f"({len(jobs)} of {expected_total} jobs)"
+                    f"({raw_count} of {expected_total} rows)"
                 )
         raise RuntimeError(
             f"Workday board '{target.name}' exceeded configured pagination "
@@ -190,11 +229,21 @@ class WorkdayProvider:
         self, target: Target, client: JsonClient
     ) -> list[Job]:
         """Enrich candidates when location or keyword constraints need details."""
-        return self._details(target, client, self.fetch_candidates(target, client))
+        return enrich_listing(
+            lambda: self.fetch(target, client),
+            lambda jobs: self._details(
+                target,
+                client,
+                [job for job in jobs if is_potential_internship_summary(job.title)],
+            ),
+        )
 
     def fetch_with_details(self, target: Target, client: JsonClient) -> list[Job]:
         """Enrich full listings when explicit keyword filters require duties."""
-        return self._details(target, client, self.fetch(target, client))
+        return enrich_listing(
+            lambda: self.fetch(target, client),
+            lambda jobs: self._details(target, client, jobs),
+        )
 
     def _details(
         self, target: Target, client: JsonClient, candidates: list[Job]
@@ -268,7 +317,7 @@ class WorkdayProvider:
             locations = normalize_locations([row.get("locationsText") or ""])
             jobs.append(
                 Job(
-                    id=f"workday:{tenant}:{source_id}",
+                    id=f"workday:{urlsplit(origin).netloc}:{tenant}:{site}:{source_id}",
                     company=target.name,
                     title=title,
                     application_url=f"{origin}/{site}{path}",
@@ -278,6 +327,7 @@ class WorkdayProvider:
                     description="",
                     remote=any("remote" in value.casefold() for value in locations),
                     metadata={
+                        "source_namespace": f"{origin}/{tenant}/{site}",
                         "tenant": tenant,
                         "site": site,
                         "posted_on": row.get("postedOn", ""),

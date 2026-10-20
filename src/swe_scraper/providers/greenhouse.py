@@ -7,10 +7,11 @@ import re
 import urllib.parse
 from typing import Any
 
+from ..execution import partial_allowed
 from ..filters import is_potential_internship_summary
 from ..models import Job
 from ..normalize import iso_datetime, normalize_locations
-from ._reliability import ordered_details
+from ._reliability import enrich_listing, ordered_details, parse_listing_rows
 from .base import JsonClient, Target
 
 
@@ -38,6 +39,10 @@ class GreenhouseProvider:
         payload = client.get_json(endpoint)
         if not isinstance(payload, dict) or not isinstance(payload.get("jobs"), list):
             raise ValueError("Greenhouse response must contain a jobs list")
+        if partial_allowed():
+            return parse_listing_rows(
+                payload["jobs"], lambda row: self.parse(target, {"jobs": [row]})
+            )
         jobs = self.parse(target, payload)
         if len(jobs) != len(payload["jobs"]):
             raise ValueError("Greenhouse response contains malformed job records")
@@ -50,10 +55,20 @@ class GreenhouseProvider:
     def fetch_candidates_with_details(
         self, target: Target, client: JsonClient
     ) -> list[Job]:
-        return self._with_details(target, client, self.fetch_candidates(target, client))
+        return enrich_listing(
+            lambda: self.fetch(target, client),
+            lambda jobs: self._with_details(
+                target,
+                client,
+                [job for job in jobs if is_potential_internship_summary(job.title)],
+            ),
+        )
 
     def fetch_with_details(self, target: Target, client: JsonClient) -> list[Job]:
-        return self._with_details(target, client, self.fetch(target, client))
+        return enrich_listing(
+            lambda: self.fetch(target, client),
+            lambda jobs: self._with_details(target, client, jobs),
+        )
 
     def _with_details(
         self, target: Target, client: JsonClient, jobs: list[Job]
@@ -100,6 +115,7 @@ class GreenhouseProvider:
                     description=_text(row.get("content")),
                     remote="remote" in str(location).casefold(),
                     metadata={
+                        "source_namespace": f"https://boards-api.greenhouse.io/v1/boards/{target.slug}",
                         "board": target.slug,
                         "source_updated_at_raw": str(row.get("updated_at") or ""),
                     },

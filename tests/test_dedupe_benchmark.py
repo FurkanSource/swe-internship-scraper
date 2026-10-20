@@ -8,7 +8,7 @@ from swe_scraper.models import Job
 
 
 class DeduplicationBenchmarkTests(unittest.TestCase):
-    def test_release_quality_gate(self):
+    def test_synthetic_identity_regression_gate(self):
         fixture = json.loads(
             (ROOT / "tests" / "fixtures" / "dedupe_benchmark.json").read_text(
                 encoding="utf-8"

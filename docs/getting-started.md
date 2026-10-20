@@ -23,6 +23,15 @@ py -m venv .venv
 
 Open `internships.csv` in a spreadsheet. The virtual environment stays inside
 `.venv`; no PowerShell activation or change to the execution policy is needed.
+Keep using that environment's executable. A global `py -m swe_scraper` can load
+another editable checkout even when your terminal is in this repository.
+To check which source is running:
+
+```powershell
+.\.venv\Scripts\python.exe -c "import swe_scraper; print(swe_scraper.__file__)"
+```
+
+The path should point into this checkout's `src/swe_scraper` directory.
 
 ## macOS and Linux
 

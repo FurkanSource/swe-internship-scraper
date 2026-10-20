@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/FurkanSource/swe-internship-scraper/blob/main/docs/board-results.schema.json",
+  "title": "SWE scraper schema v2 with optional board results",
+  "type": "object",
+  "required": ["schema_version", "jobs", "errors", "board_results"],
+  "properties": {
+    "schema_version": {"const": 2},
+    "jobs": {"type": "array", "items": {"type": "object"}},
+    "errors": {"type": "array", "items": {"type": "object"}},
+    "board_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "target_key",
+          "provider",
+          "slug",
+          "status",
+          "job_count",
+          "sources"
+        ],
+        "properties": {
+          "target_key": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "provider": {"type": "string", "minLength": 1},
+          "slug": {"type": "string", "minLength": 1},
+          "status": {"enum": ["complete", "partial", "failed"]},
+          "job_count": {"type": "integer", "minimum": 0},
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "provider",
+                "namespace",
+                "source_job_id",
+                "application_url"
+              ],
+              "properties": {
+                "provider": {"type": "string", "minLength": 1},
+                "namespace": {"type": "string"},
+                "source_job_id": {"type": "string", "minLength": 1},
+                "application_url": {
+                  "type": "string",
+                  "pattern": "^https?://"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

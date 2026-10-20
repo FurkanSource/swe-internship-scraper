@@ -2,7 +2,76 @@
 
 This project follows Semantic Versioning.
 
-## [Unreleased]
+## [1.0.0rc6] - Unreleased
+
+### Added
+
+- Opt-in `scan --include-board-results` JSON provenance for each requested
+  board, including empty and failed boards, with stable target keys and
+  pre-deduplication source identities. Default schema v2 output is unchanged.
+
+### Changed
+
+- Retired 31 Ashby catalog slugs whose public posting endpoint failed and
+  whose fallback API returned no job board in the October 19 full scan.
+  The catalog now has 1,261 targets. Re-add a company after finding a valid
+  official board identifier.
+
+### Release status
+
+This candidate requires build, live, publication, and clean-install gates.
+Stable promotion retains its separate seven-day observation requirement.
+The rc5 changes below were prepared locally but rc5 was not published.
+
+## [1.0.0rc5] - Unreleased
+
+### Changed
+
+- CLI scans recover validated records from incomplete built-in boards by default;
+  `--complete-boards-only` restores board-level fail-closed behavior. Library and
+  watch recovery remain opt-in.
+- **Compatibility:** partial scans now always return nonzero: 1 with exported jobs,
+  2 without matching jobs. `--strict` remains accepted and never aborts mid-scan.
+- `watch --allow-partial` continues after provider errors; only `--strict` stops
+  recurring watch on a failed iteration. `--once` returns the scan status.
+- Workday recovery continues past malformed rows with trustworthy pagination,
+  preserving normal empty boards and short final pages.
+- Completed detail results and validated listings survive cooperative deadlines
+  in recovery mode. Required details cannot be replaced by unfinished summaries.
+- Failed-board diagnostics are deterministic and bounded; JSON keeps full errors.
+
+### Release status
+
+This candidate is prepared locally, not published. It requires a new seven-day
+stability observation and the existing weekly gate before stable promotion.
+
+### Fixed
+
+- Scope source identities to their board/tenant, preserving unrelated requisitions
+  that happen to share a raw provider ID. Older schema v2 exports remain readable.
+- Require exact identity for automatic deduplication; report title/location
+  similarity only in the optional audit. Rank original records deterministically.
+- Cancel queued board/detail work on interruption and preserve completed-board
+  checkpoints. Retry delays and page/detail loops honor cooperative cancellation.
+- Track every exact constituent source in watch state, preventing repeat alerts
+  when a merged job changes primary source. Preserve incomplete-board markers
+  across deduplication regardless of primary selection.
+
+### Added
+
+- `--allow-partial` recovery of verified rows/details from damaged boards,
+  preserving explicit errors and nonzero exit status. Incomplete boards remain
+  eligible for retry; health retains strict completeness checks.
+- Optional `--board-timeout SECONDS` cooperative per-board deadlines.
+- Broader synthetic identity regression cases. Their pass rate is not a measurement
+  of real-world duplicate recall or false-merge frequency.
+
+### Compatibility
+
+- Workday `id` now includes origin, tenant, and site; consumers should migrate by
+  canonical application URL instead of assuming the old ID format remains stable.
+- Start a fresh scan after upgrading; a previous semantic merge cannot be undone
+  reliably from an already merged export.
 
 ## [1.0.0rc4] - 2026-09-29
 

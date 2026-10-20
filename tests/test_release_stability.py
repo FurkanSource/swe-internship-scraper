@@ -166,14 +166,14 @@ class ReleaseStabilityTests(unittest.TestCase):
                 mock.patch(
                     "scripts.release_stability.api",
                     side_effect=lambda path: (
-                        runs[0] | {"run_attempt": 1, "conclusion": "failure"}
-                    )
-                    if "/attempts/" in path
-                    else {
-                        "draft": False,
-                        "prerelease": True,
-                        "published_at": PUBLISHED.isoformat(),
-                    },
+                        (runs[0] | {"run_attempt": 1, "conclusion": "failure"})
+                        if "/attempts/" in path
+                        else {
+                            "draft": False,
+                            "prerelease": True,
+                            "published_at": PUBLISHED.isoformat(),
+                        }
+                    ),
                 ),
                 mock.patch("scripts.release_stability.dt.datetime") as clock,
             ):

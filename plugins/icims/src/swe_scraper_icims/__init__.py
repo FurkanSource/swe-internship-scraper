@@ -215,7 +215,11 @@ class IcimsProvider:
             posted_at=posted_at,
             description=description,
             remote="remote" in " ".join(normalized_locations).casefold(),
-            metadata={"portal": target.slug, "experimental": True},
+            metadata={
+                "portal": target.slug,
+                "experimental": True,
+                "source_namespace": f"{urlsplit(url).scheme}://{urlsplit(url).netloc}",
+            },
         )
 
     def fetch(self, target: Target, client: HttpClient) -> list[Job]:

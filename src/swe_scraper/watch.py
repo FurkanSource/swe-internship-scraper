@@ -6,7 +6,7 @@ import json
 import os
 from pathlib import Path
 
-from .dedupe import identity_key
+from .dedupe import _exact_keys, identity_key
 from .models import Job
 
 
@@ -28,15 +28,26 @@ def key_text(job: Job) -> str:
     return f"{kind}:{value}"
 
 
+def key_texts(job: Job) -> set[str]:
+    """Return all exact aliases, including the historical single watch key."""
+    keys = {key_text(job)}
+    for key in _exact_keys(job):
+        value = key[1] if key[0] == "url" else json.dumps(key[1:], separators=(",", ":"))
+        keys.add(f"{key[0]}:{value}")
+    return keys
+
+
 def unseen_jobs(jobs: tuple[Job, ...] | list[Job], seen: set[str]) -> list[Job]:
-    return [job for job in jobs if key_text(job) not in seen]
+    return [job for job in jobs if key_texts(job).isdisjoint(seen)]
 
 
 def save_seen(path: Path | str, jobs: tuple[Job, ...] | list[Job]) -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     existing = load_seen(target)
-    existing.update(key_text(job) for job in jobs)
+    # Save every observed job so known records can teach us additional aliases.
+    for job in jobs:
+        existing.update(key_texts(job))
     temporary = target.with_name(f".{target.name}.tmp")
     temporary.write_text(
         json.dumps(sorted(existing), indent=2, ensure_ascii=False) + "\n",

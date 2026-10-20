@@ -16,6 +16,21 @@ from urllib3.util.retry import Retry
 
 from .. import __version__
 from ..detail_cache import DetailCache
+from ..execution import check_cancelled, current_control
+
+
+class _ControlledRetry(Retry):
+    def sleep(self, response: Any = None) -> None:
+        control = current_control()
+        if control is None:
+            super().sleep(response)
+            return
+        delay = (
+            self.get_retry_after(response)
+            if response is not None and self.respect_retry_after_header
+            else None
+        )
+        control.wait(delay if delay else self.get_backoff_time())
 
 
 class RequestsJsonClient:
@@ -50,6 +65,7 @@ class RequestsJsonClient:
         **kwargs: Any,
     ) -> tuple[Any, dict[str, Any]]:
         """Cache only explicitly designated details after current listing validation."""
+        check_cancelled()
         cache = self.detail_cache
         headers = kwargs.get("headers") or {}
         if any(str(name).casefold() in {"authorization", "cookie"} for name in headers):
@@ -85,7 +101,7 @@ class RequestsJsonClient:
         if isinstance(session, requests.Session):
             return session
         session = requests.Session()
-        retries = Retry(
+        retries = _ControlledRetry(
             total=3,
             connect=3,
             read=2,
@@ -107,6 +123,7 @@ class RequestsJsonClient:
         return session
 
     def _wait_for_host(self, url: str) -> None:
+        check_cancelled()
         host = urllib.parse.urlsplit(url).hostname or ""
         with self._rate_lock:
             now = time.monotonic()
@@ -114,7 +131,18 @@ class RequestsJsonClient:
             delay = max(0.0, allowed - now)
             self._next_request[host] = max(now, allowed) + self.min_host_interval
         if delay:
-            time.sleep(delay)
+            if control := current_control():
+                control.wait(delay)
+            else:
+                time.sleep(delay)
+
+    def _request_timeout(self) -> tuple[float, float]:
+        control = current_control()
+        remaining = control.remaining() if control else None
+        if remaining is None:
+            return self.timeout
+        budget = max(0.001, remaining / 2)
+        return min(self.timeout[0], budget), min(self.timeout[1], budget)
 
     def _decode(self, response: requests.Response) -> Any:
         content = self._bounded_content(response)
@@ -133,6 +161,7 @@ class RequestsJsonClient:
             content = bytearray()
             chunk_size = min(64 * 1024, self.max_response_bytes + 1)
             for chunk in response.iter_content(chunk_size=chunk_size):
+                check_cancelled()
                 if len(content) + len(chunk) > self.max_response_bytes:
                     raise ValueError(
                         f"HTTP response exceeded {self.max_response_bytes} bytes"
@@ -145,14 +174,14 @@ class RequestsJsonClient:
     def get_json(self, url: str, **kwargs: Any) -> Any:
         self._wait_for_host(url)
         kwargs["stream"] = True
-        response = self._session().get(url, timeout=self.timeout, **kwargs)
+        response = self._session().get(url, timeout=self._request_timeout(), **kwargs)
         return self._decode(response)
 
     def post_json(self, url: str, payload: Mapping[str, Any], **kwargs: Any) -> Any:
         self._wait_for_host(url)
         kwargs["stream"] = True
         response = self._session().post(
-            url, json=dict(payload), timeout=self.timeout, **kwargs
+            url, json=dict(payload), timeout=self._request_timeout(), **kwargs
         )
         return self._decode(response)
 
@@ -161,7 +190,9 @@ class RequestsJsonClient:
         kwargs["stream"] = True
         headers = dict(kwargs.pop("headers", {}) or {})
         headers.setdefault("Accept", "text/html,application/xhtml+xml")
-        response = self._session().get(url, timeout=self.timeout, headers=headers, **kwargs)
+        response = self._session().get(
+            url, timeout=self._request_timeout(), headers=headers, **kwargs
+        )
         content = self._bounded_content(response)
         response.encoding = response.encoding or "utf-8"
         return content.decode(response.encoding, errors="replace")

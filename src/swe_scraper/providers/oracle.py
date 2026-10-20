@@ -8,15 +8,17 @@ import urllib.parse
 from dataclasses import replace
 from typing import Any
 
+from ..execution import check_cancelled
 from ..filters import is_potential_internship_summary
 from ..models import Job
 from ..normalize import iso_datetime, normalize_locations
 from ._reliability import (
+    ListingValidationError,
     PaginationTotalChanged,
     detail_json,
     detail_workers,
+    listing_snapshot,
     ordered_details,
-    restart_on_total_change,
 )
 from .base import HttpClient, Target
 
@@ -84,7 +86,9 @@ class OracleProvider:
         origin = str(target.options["origin"]).rstrip("/")
         headers = self._headers(origin, target)
         workers = detail_workers(target)
-        summaries = restart_on_total_change(lambda: self._fetch_summaries(target, client))
+        summaries, listing_issues, pagination_complete = listing_snapshot(
+            lambda retained: self._fetch_summaries(target, client, retained)
+        )
         if candidates_only:
             summaries = [
                 row
@@ -136,19 +140,31 @@ class OracleProvider:
             job = self.parse_detail(target, summary, detail_rows[0])
             return replace(job, metadata={**job.metadata, **provenance})
 
-        return ordered_details(fetch_detail, summaries, workers)
+        return ordered_details(
+            fetch_detail,
+            summaries,
+            workers,
+            listing_issues=listing_issues,
+            pagination_complete=pagination_complete,
+        )
 
-    def _fetch_summaries(self, target: Target, client: HttpClient) -> list[dict[str, Any]]:
+    def _fetch_summaries(
+        self,
+        target: Target,
+        client: HttpClient,
+        retained: list[dict[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
         origin = str(target.options["origin"]).rstrip("/")
         page_size = int(target.options.get("page_size", 25))
         max_pages = int(target.options.get("max_pages", 200))
         headers = self._headers(origin, target)
-        summaries: list[dict[str, Any]] = []
+        summaries: list[dict[str, Any]] = [] if retained is None else retained
         seen: set[str] = set()
         expected_total: int | None = None
         offset = 0
         complete = False
         for _page in range(max_pages):
+            check_cancelled()
             finder = f"findReqs;siteNumber={target.slug},limit={page_size},offset={offset}"
             endpoint = self._url(
                 origin,
@@ -161,7 +177,7 @@ class OracleProvider:
             )
             payload = client.get_json(endpoint, headers=headers)
             if not isinstance(payload, dict) or not isinstance(payload.get("items"), list):
-                raise RuntimeError(
+                raise ListingValidationError(
                     f"Oracle board '{target.name}' returned a malformed page"
                 )
             container = self._list_container(payload)
@@ -173,7 +189,9 @@ class OracleProvider:
                 if value is not None and (
                     isinstance(value, bool) or not isinstance(value, int) or value < 0
                 ):
-                    raise RuntimeError("Oracle response has invalid TotalJobsCount")
+                    raise ListingValidationError(
+                        "Oracle response has invalid TotalJobsCount"
+                    )
                 if isinstance(value, int) and value >= 0:
                     reported_total = value
             if reported_total is not None:
@@ -186,27 +204,29 @@ class OracleProvider:
                     )
             identifiers = [self._source_id(row) for row in rows]
             if any(not value for value in identifiers):
-                raise RuntimeError(
+                raise ListingValidationError(
                     f"Oracle board '{target.name}' returned a job without an ID"
                 )
             if len(set(identifiers)) != len(identifiers) or any(
                 value in seen for value in identifiers
             ):
-                raise RuntimeError(
+                raise ListingValidationError(
                     f"Oracle board '{target.name}' repeated a pagination page"
                 )
+            has_more = container.get("hasMore")
+            if not isinstance(has_more, bool):
+                raise ListingValidationError(
+                    f"Oracle board '{target.name}' omitted hasMore"
+                )
+            if expected_total is not None and offset + len(rows) > expected_total:
+                raise ListingValidationError("Oracle page exceeded TotalJobsCount")
             summaries.extend(rows)
             seen.update(identifiers)
             offset += len(rows)
-            has_more = container.get("hasMore")
-            if not isinstance(has_more, bool):
-                raise RuntimeError(f"Oracle board '{target.name}' omitted hasMore")
             if expected_total is not None:
-                if offset > expected_total:
-                    raise RuntimeError("Oracle page exceeded TotalJobsCount")
                 if offset >= expected_total:
                     if has_more is not False:
-                        raise RuntimeError(
+                        raise ListingValidationError(
                             f"Oracle board '{target.name}' pagination remained open "
                             "after total"
                         )
@@ -216,11 +236,11 @@ class OracleProvider:
                 complete = True
                 break
             if not rows:
-                raise RuntimeError(
+                raise ListingValidationError(
                     f"Oracle board '{target.name}' pagination stopped before completion"
                 )
         if not complete:
-            raise RuntimeError(
+            raise ListingValidationError(
                 f"Oracle board '{target.name}' exceeded configured pagination limit"
             )
 
@@ -243,12 +263,12 @@ class OracleProvider:
                 "items": payload.get("items") or [],
                 "hasMore": payload.get("hasMore"),
             }
-        raise RuntimeError("Oracle requisition response omitted requisitionList")
+        raise ListingValidationError("Oracle requisition response omitted requisitionList")
 
     def _list_rows(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
         rows = self._list_container(payload).get("items") or []
         if any(not isinstance(value, dict) for value in rows):
-            raise RuntimeError("Oracle requisition list contains a malformed job")
+            raise ListingValidationError("Oracle requisition list contains a malformed job")
         return [value for value in rows if isinstance(value, dict)]
 
     def _source_id(self, row: dict[str, Any]) -> str:
@@ -305,6 +325,7 @@ class OracleProvider:
             description=description,
             remote=any("remote" in value.casefold() for value in normalized),
             metadata={
+                "source_namespace": f"{origin}/{target.slug}",
                 "origin": origin,
                 "site_number": target.slug,
                 "posting_end_date": str(

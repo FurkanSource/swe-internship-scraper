@@ -35,7 +35,7 @@ Issues = "https://github.com/FurkanSource/swe-internship-scraper/issues"
 Changelog = "https://github.com/FurkanSource/swe-internship-scraper/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
-browser = ["scrapling[fetchers]==0.4.15"]
+browser = ["scrapling[fetchers]==0.5"]
 
 [project.scripts]
 swe-scraper = "swe_scraper.cli:main"

@@ -39,3 +39,26 @@ and verify the result without weakening health gates.
 No implementation can guarantee that third-party boards remain available.
 Malformed rows without a recoverable direct path still produce a failure;
 this protects coverage and prevents false closure decisions downstream.
+
+## Expanded live verification
+
+GitHub CI and Security passed for implementation commit `979693e`, including
+Python 3.10-3.14 on Windows/Linux and clean installs on Windows/Linux/macOS.
+Local wheel/sdist inspection and clean-install smoke tests also passed.
+
+The `2026-W46` rotation completed with **57/60 healthy boards**. It must not be
+reported as a passing weekly run. Cadence and Leidos returned malformed Workday
+rows on that run; fresh full-board checks subsequently passed with 695 and
+2,000 jobs respectively. Those rechecks do not erase the original failures.
+
+Cohu remains an upstream pagination inconsistency: its Oracle response reports
+197 jobs, but the first requested 25-row page contains only 24. The next offset
+computed from returned rows repeats an ID. An experimental explicit posting-date
+sort also stopped before the reported total, so changing sort order did not
+establish completeness. The board stays in the catalog and its failure remains
+visible; dropping a live board or accepting an unproven count would conceal a
+coverage gap. There is no verified local correction for that response yet.
+
+The existing health workflow therefore can still fail on real upstream
+inconsistencies. A fresh candidate and clean observation window remain release
+requirements; this repair PR does not claim release readiness.

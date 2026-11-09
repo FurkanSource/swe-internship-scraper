@@ -23,6 +23,23 @@ _Item = TypeVar("_Item")
 _Result = TypeVar("_Result")
 
 
+class DetailValidationError(RuntimeError):
+    """A detail response still violates its contract after one fresh retry."""
+
+
+def validated_detail(
+    fetch: Callable[[], Any], validate: Callable[[Any], bool] | None, url: str
+) -> Any:
+    """Retry invalid JSON objects once; transport retries belong to the client."""
+    for _attempt in range(2):
+        check_cancelled()
+        payload = fetch()
+        check_cancelled()
+        if validate is None or validate(payload):
+            return payload
+    raise DetailValidationError(f"Posting at {url} returned malformed details")
+
+
 def detail_json(
     client: HttpClient,
     url: str,
@@ -38,7 +55,7 @@ def detail_json(
             url, listing, validate=validate, **kwargs
         )
         return payload, provenance
-    return client.get_json(url, **kwargs), {}
+    return validated_detail(lambda: client.get_json(url, **kwargs), validate, url), {}
 
 
 class PaginationTotalChanged(RuntimeError):

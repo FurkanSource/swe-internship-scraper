@@ -237,7 +237,7 @@ class ProviderReliabilityTests(unittest.TestCase):
                 self.assertEqual(client.offsets, [0, 1])
                 self.assertEqual(client.detail_ids, [])
 
-    def test_malformed_detail_fails_the_whole_board_without_retry(self):
+    def test_malformed_detail_fails_after_one_retry(self):
         for provider_type in PROVIDERS:
             for malformed in (None, {}, {"items": [None]}, {"id": "bad"}):
                 with self.subTest(provider=provider_type.name, malformed=malformed):
@@ -256,7 +256,7 @@ class ProviderReliabilityTests(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, "malformed details"):
                         provider.fetch(target_for(provider), client)
                     self.assertEqual(client.offsets, [0])
-                    self.assertEqual(client.detail_ids.count("bad"), 1)
+                    self.assertEqual(client.detail_ids.count("bad"), 2)
 
     def test_transport_errors_do_not_restart_even_when_message_mentions_drift(self):
         for provider_type in PROVIDERS:

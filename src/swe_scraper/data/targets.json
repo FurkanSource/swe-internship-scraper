@@ -1368,13 +1368,6 @@
       ]
     },
     {
-      "name": "GlossGenius",
-      "slug": "glossgenius",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Glydways",
       "slug": "glydways",
       "profiles": [
@@ -4522,13 +4515,6 @@
       ]
     },
     {
-      "name": "Sanctuary AI",
-      "slug": "sanctuary",
-      "profiles": [
-        "all"
-      ]
-    },
-    {
       "name": "Saronic",
       "slug": "saronic",
       "profiles": [
@@ -5488,8 +5474,8 @@
       ]
     },
     {
-      "name": "Firetiger",
-      "slug": "firetiger",
+      "name": "GlossGenius (Genius AI)",
+      "slug": "geniusai",
       "profiles": [
         "all"
       ]

@@ -17,6 +17,7 @@ from urllib3.util.retry import Retry
 from .. import __version__
 from ..detail_cache import DetailCache
 from ..execution import check_cancelled, current_control
+from ._reliability import validated_detail
 
 
 class _ControlledRetry(Retry):
@@ -76,11 +77,13 @@ class RequestsJsonClient:
             entry = None
         hit = entry is not None
         if entry is None:
-            payload = self.get_json(url, **kwargs)
-            if validate is not None and not validate(payload):
-                raise RuntimeError(f"Posting at {url} returned malformed details")
-            with self._detail_lock:
-                self.detail_requests += 1
+
+            def fetch() -> Any:
+                with self._detail_lock:
+                    self.detail_requests += 1
+                return self.get_json(url, **kwargs)
+
+            payload = validated_detail(fetch, validate, url)
             if cache:
                 entry = cache.save(key, payload)
         else:

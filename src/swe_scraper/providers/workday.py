@@ -10,7 +10,12 @@ from dataclasses import replace
 from typing import Any
 from urllib.parse import urlsplit
 
-from ..execution import check_cancelled, partial_allowed
+from ..execution import (
+    BoardDeadlineExceeded,
+    ScanCancelled,
+    check_cancelled,
+    partial_allowed,
+)
 from ..filters import is_potential_internship_summary
 from ..models import Job
 from ..normalize import normalize_locations
@@ -146,6 +151,47 @@ class WorkdayProvider:
                 raise RuntimeError(
                     f"Workday board '{target.name}' returned inconsistent pagination counts"
                 )
+            # A persistent missing title can be recovered only from the same
+            # posting's public details. Missing/unsafe paths remain failures.
+            recovered = []
+            for row in rows:
+                if (
+                    isinstance(row, dict)
+                    and self._row_error(row) == "title must be a non-empty string"
+                    and not self._row_error({**row, "title": "pending"})
+                ):
+                    detail_url = (
+                        f"{origin}/wday/cxs/{tenant}/{site}{row['externalPath'].strip()}"
+                    )
+
+                    def valid(data: Any, row: dict[str, Any] = row) -> bool:
+                        info = (
+                            data.get("jobPostingInfo") if isinstance(data, dict) else None
+                        )
+                        return (
+                            isinstance(info, dict)
+                            and isinstance(info.get("title"), str)
+                            and bool(info["title"].strip())
+                            and (
+                                not row.get("jobReqId")
+                                or info.get("jobReqId") == row["jobReqId"]
+                            )
+                        )
+
+                    try:
+                        detail, _ = detail_json(client, detail_url, row, validate=valid)
+                    except (ScanCancelled, BoardDeadlineExceeded):
+                        raise
+                    except Exception:
+                        if not partial_allowed():
+                            raise
+                        # Leave this row invalid so the existing record-issue
+                        # path retains valid neighbors and reports partial data.
+                    else:
+                        row = {**row, "title": detail["jobPostingInfo"]["title"]}
+                recovered.append(row)
+            rows = recovered
+            data = {**data, "jobPostings": rows}
             fingerprint = hashlib.sha256(
                 json.dumps(rows, sort_keys=True).encode("utf-8")
             ).hexdigest()
@@ -216,6 +262,7 @@ class WorkdayProvider:
             or ".." in path.split("/")
             or "?" in path
             or "#" in path
+            or "\\" in path
         ):
             return "externalPath must be a direct /job/ path"
         return ""

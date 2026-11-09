@@ -10,9 +10,11 @@ from datetime import datetime, timezone
 from enum import Enum
 from time import perf_counter
 
+import requests
+
 from .models import Job, ScanResult
 from .providers import Target, get_provider
-from .providers._reliability import ListingValidationError
+from .providers._reliability import DetailValidationError, ListingValidationError
 from .providers.base import HttpClient
 from .providers.http import RequestsJsonClient
 from .providers.results import PartialFetchError
@@ -171,6 +173,12 @@ def evaluate_target_health(
 
 
 def _failure_category(exc: Exception) -> str:
+    if isinstance(exc, DetailValidationError):
+        return "contract"
+    if isinstance(exc, (TimeoutError, requests.exceptions.Timeout)):
+        return "timeout"
+    if isinstance(exc, requests.exceptions.HTTPError):
+        return "http"
     if isinstance(exc, ListingValidationError):
         return "pagination"
     message = str(exc).casefold()
@@ -178,10 +186,10 @@ def _failure_category(exc: Exception) -> str:
         return "pagination"
     if "timeout" in message or isinstance(exc, TimeoutError):
         return "timeout"
-    if "http" in message or "status" in message:
-        return "http"
     if isinstance(exc, ValueError) or "malformed" in message:
         return "contract"
+    if "http status" in message or "http error" in message:
+        return "http"
     return "provider"
 
 
